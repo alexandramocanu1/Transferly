@@ -5,17 +5,20 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
 
+
     <application
+        android:requestLegacyExternalStorage="true"
         android:label="Transferly"
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/Theme.Transferly">
 
-        <activity android:name=".activities.LoginActivity"/>
-        <activity android:name=".activities.RegisterActivity"/>
-        <activity android:name=".activities.FriendsActivity"/>
-        <activity android:name=".activities.SharedFoldersActivity"/>
-        <activity android:name=".activities.UploadActivity"/>
-        <activity android:name=".activities.REVActivity"/>
+        <activity android:name=".activities.FullImageActivity" />
+    <activity android:name=".activities.LoginActivity" />
+        <activity android:name=".activities.RegisterActivity" />
+        <activity android:name=".activities.UploadActivity" />
+        <activity android:name=".activities.FriendsActivity" />
+        <activity android:name=".activities.SharedFoldersActivity" />
+
 
         <activity android:name=".activities.MainActivity"
             android:exported="true">

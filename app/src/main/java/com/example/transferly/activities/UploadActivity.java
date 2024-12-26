@@ -2,33 +2,66 @@ package com.example.transferly.activities;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.Log;
+import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.transferly.R;
+import com.example.transferly.adapters.ImagesAdapter;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
-public class UploadActivity extends AppCompatActivity {
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+public class UploadActivity extends AppCompatActivity implements ImagesAdapter.OnImageLongClickListener {
 
     private static final int REQUEST_CODE_PERMISSIONS = 101;
+    private static final int REQUEST_CODE_SELECT_IMAGES = 102;
+    private final List<Uri> selectedImages = new ArrayList<>();
+    private ImagesAdapter imagesAdapter;
+    private RecyclerView recyclerViewImages;
+    private FloatingActionButton fabUpload;
+    private TextView uploadIntroText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_upload);
 
-        // Configurăm bara de navigare
+        recyclerViewImages = findViewById(R.id.recyclerViewImages);
+        fabUpload = findViewById(R.id.fabUpload);
+        uploadIntroText = findViewById(R.id.uploadIntroText);
+
+        // Configurare RecyclerView
+        imagesAdapter = new ImagesAdapter(this, selectedImages, this);
+        recyclerViewImages.setLayoutManager(new GridLayoutManager(this, 3));
+        recyclerViewImages.setAdapter(imagesAdapter);
+
+        fabUpload.setOnClickListener(v -> {
+            if (selectedImages.isEmpty()) {
+                checkPermissionsAndOpenGallery();
+            } else {
+                generateLink();
+            }
+        });
+
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
         bottomNavigationView.setSelectedItemId(R.id.nav_upload);
 
@@ -47,13 +80,11 @@ public class UploadActivity extends AppCompatActivity {
             return false;
         });
 
-        // Setăm funcționalitatea pentru butonul "+"
-        findViewById(R.id.fabUpload).setOnClickListener(v -> checkPermissionsAndOpenGallery());
+        loadImages();
     }
 
     private void checkPermissionsAndOpenGallery() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Pentru Android 13+ (API 33+)
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(
                         this,
@@ -64,7 +95,6 @@ public class UploadActivity extends AppCompatActivity {
                 openGallery();
             }
         } else {
-            // Pentru versiunile mai vechi de Android 13
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(
                         this,
@@ -80,31 +110,95 @@ public class UploadActivity extends AppCompatActivity {
     private void openGallery() {
         Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
         intent.setType("image/*");
-        startActivityForResult(intent, 101);
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        startActivityForResult(intent, REQUEST_CODE_SELECT_IMAGES);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 101 && resultCode == RESULT_OK && data != null) {
-            Uri selectedImageUri = data.getData();
-            if (selectedImageUri != null) {
-                Toast.makeText(this, "Image selected: " + selectedImageUri.toString(), Toast.LENGTH_SHORT).show();
-                // Poți gestiona imaginea aici
+
+        if (requestCode == REQUEST_CODE_SELECT_IMAGES && resultCode == RESULT_OK && data != null) {
+            boolean imagesAdded = false;
+
+            if (data.getClipData() != null) {
+                int count = data.getClipData().getItemCount();
+                for (int i = 0; i < count; i++) {
+                    Uri imageUri = data.getClipData().getItemAt(i).getUri();
+                    if (!selectedImages.contains(imageUri)) {
+                        selectedImages.add(imageUri);
+                        imagesAdded = true;
+                    }
+                }
+            } else if (data.getData() != null) {
+                Uri imageUri = data.getData();
+                if (!selectedImages.contains(imageUri)) {
+                    selectedImages.add(imageUri);
+                    imagesAdded = true;
+                }
+            }
+
+            if (imagesAdded) {
+                imagesAdapter.notifyDataSetChanged();
+                recyclerViewImages.setVisibility(View.VISIBLE);
+                uploadIntroText.setVisibility(View.GONE);
+                fabUpload.setImageResource(R.drawable.ic_generate_link);
+                saveImages();
             }
         }
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    private void generateLink() {
+        Toast.makeText(this, "Link generated for " + selectedImages.size() + " images!", Toast.LENGTH_SHORT).show();
+    }
 
-        if (requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                openGallery();
-            } else {
-                Toast.makeText(this, "Permission denied to access gallery", Toast.LENGTH_SHORT).show();
-            }
+    private void saveImages() {
+        SharedPreferences prefs = getSharedPreferences("TransferlyPrefs", MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        Set<String> imageUris = new HashSet<>();
+        for (Uri uri : selectedImages) {
+            imageUris.add(uri.toString());
         }
+        editor.putStringSet("selectedImages", imageUris);
+        editor.apply();
+    }
+
+    private void loadImages() {
+        SharedPreferences prefs = getSharedPreferences("TransferlyPrefs", MODE_PRIVATE);
+        Set<String> savedImages = prefs.getStringSet("selectedImages", new HashSet<>());
+        selectedImages.clear();
+        for (String uri : savedImages) {
+            selectedImages.add(Uri.parse(uri));
+        }
+
+        if (!selectedImages.isEmpty()) {
+            imagesAdapter.notifyDataSetChanged();
+            recyclerViewImages.setVisibility(View.VISIBLE);
+            uploadIntroText.setVisibility(View.GONE);
+            fabUpload.setImageResource(R.drawable.ic_generate_link);
+        } else {
+            recyclerViewImages.setVisibility(View.GONE);
+            uploadIntroText.setVisibility(View.VISIBLE);
+        }
+    }
+
+    @Override
+    public void onImageLongClick(int position) {
+        selectedImages.remove(position);
+        imagesAdapter.notifyItemRemoved(position);
+        imagesAdapter.notifyItemRangeChanged(position, selectedImages.size());
+        saveImages();
+
+        if (selectedImages.isEmpty()) {
+            recyclerViewImages.setVisibility(View.GONE);
+            uploadIntroText.setVisibility(View.VISIBLE);
+            fabUpload.setImageResource(R.drawable.ic_plus);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        saveImages();
     }
 }

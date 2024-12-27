@@ -10,10 +10,12 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -29,6 +31,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import android.graphics.Rect;
+
 
 public class UploadActivity extends AppCompatActivity implements ImagesAdapter.OnImageLongClickListener {
 
@@ -48,11 +53,46 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
         recyclerViewImages = findViewById(R.id.recyclerViewImages);
         fabUpload = findViewById(R.id.fabUpload);
         uploadIntroText = findViewById(R.id.uploadIntroText);
+        ImageView reloadButton = findViewById(R.id.reloadButton);
 
-        // Configurare RecyclerView
+        // Initially hide the reload button
+        reloadButton.setVisibility(View.GONE);
+
+        reloadButton.setOnClickListener(v -> {
+            if (!selectedImages.isEmpty()) {
+                new AlertDialog.Builder(this)
+                        .setMessage("Want to start over?")
+                        .setPositiveButton("Yes", (dialog, which) -> {
+                            selectedImages.clear();
+                            imagesAdapter.notifyDataSetChanged();
+                            recyclerViewImages.setVisibility(View.GONE);
+                            uploadIntroText.setVisibility(View.VISIBLE);
+                            reloadButton.setVisibility(View.GONE); // Hide reload button
+                            fabUpload.setImageResource(R.drawable.ic_plus); // Change FAB to "+"
+                            Toast.makeText(this, "All images cleared!", Toast.LENGTH_SHORT).show();
+                        })
+                        .setNegativeButton("Close", (dialog, which) -> dialog.dismiss())
+                        .setCancelable(true)
+                        .show();
+            }
+        });
+
+        // RecyclerView configuration
         imagesAdapter = new ImagesAdapter(this, selectedImages, this);
-        recyclerViewImages.setLayoutManager(new GridLayoutManager(this, 3));
+        recyclerViewImages.setLayoutManager(new GridLayoutManager(this, 3)); // 3 items per row
         recyclerViewImages.setAdapter(imagesAdapter);
+
+        // Add spacing between grid items
+        recyclerViewImages.addItemDecoration(new RecyclerView.ItemDecoration() {
+            @Override
+            public void getItemOffsets(@NonNull Rect outRect, @NonNull View view, @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
+                int spacing = 8; // Spacing in pixels
+                outRect.left = spacing;
+                outRect.right = spacing;
+                outRect.top = spacing;
+                outRect.bottom = spacing;
+            }
+        });
 
         fabUpload.setOnClickListener(v -> {
             if (selectedImages.isEmpty()) {
@@ -82,6 +122,7 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
 
         loadImages();
     }
+
 
     private void checkPermissionsAndOpenGallery() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -139,14 +180,19 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
             }
 
             if (imagesAdded) {
+                // Notify adapter to refresh the RecyclerView
                 imagesAdapter.notifyDataSetChanged();
                 recyclerViewImages.setVisibility(View.VISIBLE);
                 uploadIntroText.setVisibility(View.GONE);
-                fabUpload.setImageResource(R.drawable.ic_generate_link);
-                saveImages();
+                fabUpload.setImageResource(R.drawable.ic_generate_link); // Change FAB icon to generate link
+                findViewById(R.id.reloadButton).setVisibility(View.VISIBLE); // Show reload button
+            } else {
+                Toast.makeText(this, "No new images selected", Toast.LENGTH_SHORT).show();
             }
         }
     }
+
+
 
     private void generateLink() {
         Toast.makeText(this, "Link generated for " + selectedImages.size() + " images!", Toast.LENGTH_SHORT).show();
@@ -176,11 +222,14 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
             recyclerViewImages.setVisibility(View.VISIBLE);
             uploadIntroText.setVisibility(View.GONE);
             fabUpload.setImageResource(R.drawable.ic_generate_link);
+            findViewById(R.id.reloadButton).setVisibility(View.VISIBLE);
         } else {
             recyclerViewImages.setVisibility(View.GONE);
             uploadIntroText.setVisibility(View.VISIBLE);
+            findViewById(R.id.reloadButton).setVisibility(View.GONE);
         }
     }
+
 
     @Override
     public void onImageLongClick(int position) {
@@ -196,9 +245,20 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
         }
     }
 
+    public void onListEmptied() {
+        recyclerViewImages.setVisibility(View.GONE);
+        uploadIntroText.setVisibility(View.VISIBLE);
+        findViewById(R.id.reloadButton).setVisibility(View.GONE); // Hide reload button
+        fabUpload.setImageResource(R.drawable.ic_plus); // Change FAB to "+"
+    }
+
+
+
     @Override
     protected void onPause() {
         super.onPause();
         saveImages();
     }
+
+
 }

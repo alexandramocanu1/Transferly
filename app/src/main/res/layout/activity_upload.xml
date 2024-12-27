@@ -5,6 +5,28 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:background="@drawable/background_gradient">
 
+    <!-- Transparent Top Bar -->
+    <LinearLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:background="#80000000"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:id="@+id/reloadButton"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_gravity="end|top"
+            android:layout_margin="16dp"
+            android:src="@drawable/ic_reload"
+            android:contentDescription="Reload Button"
+            app:tint="@android:color/white" />
+
+    </LinearLayout>
+
+    <!-- Existing layout continues here -->
     <LinearLayout
         android:id="@+id/linearLayout"
         android:layout_width="match_parent"
@@ -13,21 +35,18 @@
         android:gravity="center"
         android:orientation="vertical">
 
-        <!-- RecyclerView pentru afișarea imaginilor selectate -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerViewImages"
             android:layout_width="match_parent"
             android:layout_height="0dp"
+            android:layout_marginTop="72dp"
+            android:layout_marginBottom="32dp"
             android:layout_weight="1"
-            android:padding="4dp"
+            android:padding="8dp"
             tools:listitem="@layout/item_image" />
-
-
 
     </LinearLayout>
 
-
-    <!-- Bara de navigare jos -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabUpload"
         android:layout_width="wrap_content"
@@ -60,5 +79,4 @@
         android:textSize="18sp"
         app:layout_anchor="@+id/linearLayout"
         app:layout_anchorGravity="center" />
-
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

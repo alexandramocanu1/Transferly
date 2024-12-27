@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.example.transferly.R;
 import com.example.transferly.activities.FullImageActivity;
+import com.example.transferly.activities.UploadActivity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,21 +49,39 @@ public class ImagesAdapter extends RecyclerView.Adapter<ImagesAdapter.ImageViewH
     @Override
     public void onBindViewHolder(@NonNull ImageViewHolder holder, int position) {
         Uri imageUri = images.get(position);
-        Glide.with(context).load(imageUri).into(holder.imageView);
-        Log.d("ImagesAdapter", "Binding image at position: " + position + ", URI: " + imageUri);
 
+        // Use Glide to load the image into the ImageView
+        Glide.with(context)
+                .load(imageUri)
+                .into(holder.imageView);
 
-        holder.itemView.setOnClickListener(v -> {
-            if (images.isEmpty()) {
-                Toast.makeText(context, "No images to display", Toast.LENGTH_SHORT).show();
-                return;
+        // Set up delete button functionality
+        holder.itemView.findViewById(R.id.deleteButton).setOnClickListener(v -> {
+            images.remove(position);
+            notifyItemRemoved(position);
+            notifyItemRangeChanged(position, images.size());
+            if (images.isEmpty() && context instanceof UploadActivity) {
+                ((UploadActivity) context).onListEmptied(); // Notify the activity if the list becomes empty
             }
+        });
+
+        // Set up click listener for viewing the image
+        holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(context, FullImageActivity.class);
             intent.putParcelableArrayListExtra("images", new ArrayList<>(images));
             intent.putExtra("position", position);
             context.startActivity(intent);
         });
+
+        // Setează listener pentru clic
+        holder.itemView.setOnClickListener(v -> {
+            Intent intent = new Intent(context, FullImageActivity.class);
+            intent.putExtra("imageUri", imageUri.toString()); // Transmite URI-ul imaginii
+            context.startActivity(intent);
+        });
     }
+
+
 
     @Override
     public int getItemCount() {

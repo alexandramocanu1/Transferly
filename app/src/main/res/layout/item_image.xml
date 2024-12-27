@@ -4,6 +4,7 @@
     android:layout_height="wrap_content"
     android:layout_margin="4dp">
 
+    <!-- Imagine cu colțuri rotunjite -->
     <ImageView
         android:id="@+id/imageView"
         android:layout_width="match_parent"
@@ -12,6 +13,7 @@
         android:background="@drawable/rounded_corner_background"
         android:contentDescription="Image with Rounded Corners" />
 
+    <!-- Buton pentru ștergerea imaginii -->
     <ImageView
         android:id="@+id/deleteButton"
         android:layout_width="24dp"

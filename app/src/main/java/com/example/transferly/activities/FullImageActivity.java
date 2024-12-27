@@ -1,16 +1,18 @@
 package com.example.transferly.activities;
 
-import android.annotation.SuppressLint;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
-import android.widget.ImageView;
+import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.viewpager2.widget.ViewPager2;
 
-import com.bumptech.glide.Glide;
 import com.example.transferly.R;
+import com.example.transferly.adapters.FullImageAdapter;
+
+import java.util.List;
 
 public class FullImageActivity extends AppCompatActivity {
 
@@ -21,44 +23,42 @@ public class FullImageActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_full_image);
 
-        ImageView imageViewFull = findViewById(R.id.imageViewFull);
+        ViewPager2 viewPager = findViewById(R.id.viewPager);
 
-        // Primește URI-ul imaginii din intent
-        String imageUriString = getIntent().getStringExtra("imageUri");
-        if (imageUriString != null) {
-            Uri imageUri = Uri.parse(imageUriString);
+        // Obține lista de imagini și poziția curentă
+        List<Uri> imageUris = getIntent().getParcelableArrayListExtra("images");
+        int currentPosition = getIntent().getIntExtra("position", 0);
 
-            // Încarcă imaginea în ImageView
-            Glide.with(this)
-                    .load(imageUri)
-                    .into(imageViewFull);
+        if (imageUris != null && !imageUris.isEmpty()) {
+            FullImageAdapter adapter = new FullImageAdapter(imageUris);
+            viewPager.setAdapter(adapter);
+            viewPager.setCurrentItem(currentPosition);
         }
 
         // Initializează GestureDetector
         gestureDetector = new GestureDetector(this, new GestureListener());
 
-        // Setează un touch listener pe View-ul principal
-        imageViewFull.setOnTouchListener((v, event) -> gestureDetector.onTouchEvent(event));
+        // Setează un OnTouchListener pentru ViewPager2
+        viewPager.getChildAt(0).setOnTouchListener((v, event) -> gestureDetector.onTouchEvent(event));
     }
-
 
     private class GestureListener extends GestureDetector.SimpleOnGestureListener {
 
-        private static final int SWIPE_THRESHOLD = 100;
-        private static final int SWIPE_VELOCITY_THRESHOLD = 100;
+        private static final int SWIPE_THRESHOLD = 200;
+        private static final int SWIPE_VELOCITY_THRESHOLD = 200;
 
         @Override
         public boolean onDown(MotionEvent e) {
-            return true;
+            return true; // Obligatoriu pentru a detecta alte gesturi
         }
 
         @Override
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
             float diffY = e2.getY() - e1.getY();
-            if (Math.abs(diffY) > SWIPE_THRESHOLD && Math.abs(velocityY) > SWIPE_VELOCITY_THRESHOLD) {
-                if (diffY > 0) {
-                    onSwipeDown();
-                }
+
+            if (diffY > SWIPE_THRESHOLD && Math.abs(velocityY) > SWIPE_VELOCITY_THRESHOLD) {
+                // Detectează swipe în jos
+                onSwipeDown();
                 return true;
             }
             return false;
@@ -67,6 +67,6 @@ public class FullImageActivity extends AppCompatActivity {
 
     private void onSwipeDown() {
         finish(); // Închide activitatea
-        overridePendingTransition(0, R.anim.slide_out_down); // Animație de închidere (opțional)
+        overridePendingTransition(0, R.anim.slide_out_down); // Animație de închidere
     }
 }

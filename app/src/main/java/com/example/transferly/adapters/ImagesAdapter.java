@@ -8,7 +8,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -35,8 +34,7 @@ public class ImagesAdapter extends RecyclerView.Adapter<ImagesAdapter.ImageViewH
         this.context = context;
         this.images = images;
         this.onImageLongClickListener = listener;
-        Log.d("ImagesAdapter", "Notified data set changed.");
-
+        Log.d("ImagesAdapter", "Adapter initialized with " + images.size() + " images.");
     }
 
     @NonNull
@@ -65,23 +63,23 @@ public class ImagesAdapter extends RecyclerView.Adapter<ImagesAdapter.ImageViewH
             }
         });
 
-        // Set up click listener for viewing the image
+        // Set up click listener for displaying the image
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(context, FullImageActivity.class);
-            intent.putParcelableArrayListExtra("images", new ArrayList<>(images));
-            intent.putExtra("position", position);
-            context.startActivity(intent);
-        });
 
-        // Setează listener pentru clic
-        holder.itemView.setOnClickListener(v -> {
-            Intent intent = new Intent(context, FullImageActivity.class);
-            intent.putExtra("imageUri", imageUri.toString()); // Transmite URI-ul imaginii
+            // Check if navigating through multiple images or a single image
+            if (images.size() == 1) {
+                // Single image display
+                intent.putExtra("imageUri", imageUri.toString());
+            } else {
+                // Navigation between multiple images
+                intent.putParcelableArrayListExtra("images", new ArrayList<>(images));
+                intent.putExtra("position", position);
+            }
+
             context.startActivity(intent);
         });
     }
-
-
 
     @Override
     public int getItemCount() {

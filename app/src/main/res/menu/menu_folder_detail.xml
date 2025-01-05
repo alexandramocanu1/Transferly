@@ -1,0 +1,14 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_upload"
+        android:title="Upload Photos"
+        android:icon="@drawable/ic_upload"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_create_subfolder"
+        android:title="Create Subfolder"
+        android:icon="@drawable/ic_folder"
+        app:showAsAction="never" />
+</menu>

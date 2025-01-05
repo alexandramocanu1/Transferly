@@ -1,0 +1,93 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Titlu pentru numele folderului -->
+    <TextView
+        android:id="@+id/folderDetailTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Folder Name"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:padding="16dp" />
+
+    <!-- Layout pentru folder gol -->
+    <LinearLayout
+        android:id="@+id/emptyFolderLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/emptyFolderText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="This folder is empty. Start by uploading photos or creating a subfolder."
+            android:textSize="16sp"
+            android:gravity="center"
+            android:paddingBottom="16dp" />
+
+        <Button
+            android:id="@+id/startNowButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Start Now" />
+    </LinearLayout>
+
+    <!-- Titlu pentru sectiunea Liked -->
+    <TextView
+        android:id="@+id/likedTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Liked"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <!-- RecyclerView pentru sectiunea Liked -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/likedRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Titlu pentru sectiunea Restul -->
+    <TextView
+        android:id="@+id/othersTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Others"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <!-- RecyclerView pentru sectiunea Restul -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/othersRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Titlu pentru sectiunea Duplicate -->
+    <TextView
+        android:id="@+id/duplicateTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Duplicate"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <!-- RecyclerView pentru sectiunea Duplicate -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/duplicateRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+</LinearLayout>

@@ -1,0 +1,37 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp">
+
+    <!-- Imaginea principală -->
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="match_parent"
+        android:layout_height="150dp"
+        android:scaleType="centerCrop"
+        android:background="@drawable/rounded_corner_background"
+        android:contentDescription="Image" />
+
+    <!-- Etichetă „Liked” -->
+    <TextView
+        android:id="@+id/likedLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start|top"
+        android:layout_margin="8dp"
+        android:background="@android:color/holo_blue_light"
+        android:text="Liked"
+        android:textColor="@android:color/white"
+        android:padding="4dp"
+        android:visibility="gone" />
+
+    <!-- Buton pentru „Like” -->
+    <ImageView
+        android:id="@+id/likeButton"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_gravity="end|top"
+        android:layout_margin="8dp"
+        android:src="@drawable/ic_like"
+        android:contentDescription="Like Image" />
+</FrameLayout>

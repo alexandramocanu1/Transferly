@@ -48,31 +48,31 @@ public class ImagesAdapter extends RecyclerView.Adapter<ImagesAdapter.ImageViewH
     public void onBindViewHolder(@NonNull ImageViewHolder holder, int position) {
         Uri imageUri = images.get(position);
 
-        // Use Glide to load the image into the ImageView
+        // Glide ca sa incarc imaginile in ImageView
         Glide.with(context)
                 .load(imageUri)
                 .into(holder.imageView);
 
-        // Set up delete button functionality
+        // delete button functionality
         holder.itemView.findViewById(R.id.deleteButton).setOnClickListener(v -> {
             images.remove(position);
             notifyItemRemoved(position);
             notifyItemRangeChanged(position, images.size());
             if (images.isEmpty() && context instanceof UploadActivity) {
-                ((UploadActivity) context).onListEmptied(); // Notify the activity if the list becomes empty
+                ((UploadActivity) context).onListEmptied(); // dc lista e goala
             }
         });
 
-        // Set up click listener for displaying the image
+        // Set up click listener pt afisare img
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(context, FullImageActivity.class);
 
-            // Check if navigating through multiple images or a single image
+            // de plimbat printre img
             if (images.size() == 1) {
-                // Single image display
+                // af imaginea
                 intent.putExtra("imageUri", imageUri.toString());
             } else {
-                // Navigation between multiple images
+                // navigare intre imagini st/dr
                 intent.putParcelableArrayListExtra("images", new ArrayList<>(images));
                 intent.putExtra("position", position);
             }

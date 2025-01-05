@@ -11,12 +11,12 @@
 //    @Override
 //    protected void onCreate(Bundle savedInstanceState) {
 //        super.onCreate(savedInstanceState);
-//        setContentView(R.layout.activity_login); // Asigură-te că ai un layout pentru login
+//        setContentView(R.layout.activity_login); // Asigura-te ca ai un layout pentru login
 //
-//        // Găsește linkul de înregistrare
+//        // Gaseste linkul de inregistrare
 //        TextView registerLink = findViewById(R.id.registerLink);
 //
-//        // Adaugă un OnClickListener pentru a naviga la RegisterActivity
+//        // Adauga un OnClickListener pentru a naviga la RegisterActivity
 //        registerLink.setOnClickListener(new View.OnClickListener() {
 //            @Override
 //            public void onClick(View v) {
@@ -45,15 +45,15 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_login); // Asigură-te că ai un layout pentru login
+        setContentView(R.layout.activity_login); 
 
-        // Găsește linkul de înregistrare
+        // linkul de inregistrare
         TextView registerLink = findViewById(R.id.registerLink);
 
-        // Găsește butonul de login
+        // butonul de login
         Button loginButton = findViewById(R.id.loginButton);
 
-        // Adaugă un OnClickListener pentru a naviga la RegisterActivity
+        // OnClickListener pt a naviga la RegisterActivity
         registerLink.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -63,14 +63,14 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
 
-        // Adaugă un OnClickListener pentru butonul de login
+        // OnClickListener pentru butonul de login
         loginButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Dacă utilizatorul apasă pe "login", navighează la UploadActivity
+                // Daca utilizatorul apasa pe "login", navigheaza la UploadActivity
                 Intent intent = new Intent(LoginActivity.this, UploadActivity.class);
                 startActivity(intent);
-                finish(); // Închide LoginActivity pentru a nu putea reveni la ea cu back
+                finish(); // inchide LoginActivity pt a nu putea reveni la ea cu back
             }
         });
     }

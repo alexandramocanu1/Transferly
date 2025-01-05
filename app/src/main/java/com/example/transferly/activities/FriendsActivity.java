@@ -14,14 +14,13 @@ public class FriendsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_friends);
 
-        // Configurăm bara de navigare
+        // config bara de navigare
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
-        bottomNavigationView.setSelectedItemId(R.id.nav_friends); // Selectăm tab-ul curent
+        bottomNavigationView.setSelectedItemId(R.id.nav_friends); // Select tab-ul curent
 
         bottomNavigationView.setOnItemSelectedListener(item -> {
-            // Înlocuim switch cu if-else
             if (item.getItemId() == R.id.nav_friends) {
-                // Rămânem pe această activitate
+                // raman pe ac activitate
                 return true;
 
             } else if (item.getItemId() == R.id.nav_upload) {

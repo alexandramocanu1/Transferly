@@ -25,7 +25,7 @@ public class FullImageActivity extends AppCompatActivity {
 
         ViewPager2 viewPager = findViewById(R.id.viewPager);
 
-        // Obține lista de imagini și poziția curentă
+        // Obt lista de imagini si poziția curenta
         List<Uri> imageUris = getIntent().getParcelableArrayListExtra("images");
         int currentPosition = getIntent().getIntExtra("position", 0);
 
@@ -35,10 +35,10 @@ public class FullImageActivity extends AppCompatActivity {
             viewPager.setCurrentItem(currentPosition);
         }
 
-        // Initializează GestureDetector
+        // init GestureDetector
         gestureDetector = new GestureDetector(this, new GestureListener());
 
-        // Setează un OnTouchListener pentru ViewPager2
+        // Set un OnTouchListener pt ViewPager2
         viewPager.getChildAt(0).setOnTouchListener((v, event) -> gestureDetector.onTouchEvent(event));
     }
 
@@ -49,7 +49,7 @@ public class FullImageActivity extends AppCompatActivity {
 
         @Override
         public boolean onDown(MotionEvent e) {
-            return true; // Obligatoriu pentru a detecta alte gesturi
+            return true; // pt a detecta alte gesturi
         }
 
         @Override
@@ -57,7 +57,7 @@ public class FullImageActivity extends AppCompatActivity {
             float diffY = e2.getY() - e1.getY();
 
             if (diffY > SWIPE_THRESHOLD && Math.abs(velocityY) > SWIPE_VELOCITY_THRESHOLD) {
-                // Detectează swipe în jos
+                // swipe în jos
                 onSwipeDown();
                 return true;
             }
@@ -66,7 +66,7 @@ public class FullImageActivity extends AppCompatActivity {
     }
 
     private void onSwipeDown() {
-        finish(); // Închide activitatea
-        overridePendingTransition(0, R.anim.slide_out_down); // Animație de închidere
+        finish(); // inchid activitatea
+        overridePendingTransition(0, R.anim.slide_out_down); // animatie de închidere
     }
 }

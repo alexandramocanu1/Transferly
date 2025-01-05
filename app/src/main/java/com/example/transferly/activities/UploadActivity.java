@@ -180,12 +180,12 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
             }
 
             if (imagesAdded) {
-                // Notify adapter to refresh the RecyclerView
+                // notify adapter to refresh the RecyclerView
                 imagesAdapter.notifyDataSetChanged();
                 recyclerViewImages.setVisibility(View.VISIBLE);
                 uploadIntroText.setVisibility(View.GONE);
-                fabUpload.setImageResource(R.drawable.ic_generate_link); // Change FAB icon to generate link
-                findViewById(R.id.reloadButton).setVisibility(View.VISIBLE); // Show reload button
+                fabUpload.setImageResource(R.drawable.ic_generate_link); // change FAB icon to generate link button
+                findViewById(R.id.reloadButton).setVisibility(View.VISIBLE); // show reload button
             } else {
                 Toast.makeText(this, "No new images selected", Toast.LENGTH_SHORT).show();
             }
@@ -248,7 +248,7 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
     public void onListEmptied() {
         recyclerViewImages.setVisibility(View.GONE);
         uploadIntroText.setVisibility(View.VISIBLE);
-        findViewById(R.id.reloadButton).setVisibility(View.GONE); // Hide reload button
+        findViewById(R.id.reloadButton).setVisibility(View.GONE); // hide reload button
         fabUpload.setImageResource(R.drawable.ic_plus); // Change FAB to "+"
     }
 

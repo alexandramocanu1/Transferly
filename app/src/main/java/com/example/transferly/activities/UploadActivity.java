@@ -1,15 +1,19 @@
 package com.example.transferly.activities;
 
 import android.Manifest;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
-import android.util.Log;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -22,17 +26,31 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.request.Request;
 import com.example.transferly.R;
+import com.example.transferly.adapters.FullImageAdapter;
 import com.example.transferly.adapters.ImagesAdapter;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import android.graphics.Rect;
+
+import fi.iki.elonen.NanoHTTPD;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+
+
 
 
 public class UploadActivity extends AppCompatActivity implements ImagesAdapter.OnImageLongClickListener {
@@ -80,7 +98,13 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
         // RecyclerView configuration
         imagesAdapter = new ImagesAdapter(this, selectedImages, this);
         recyclerViewImages.setLayoutManager(new GridLayoutManager(this, 3)); // 3 items per row
-        recyclerViewImages.setAdapter(imagesAdapter);
+//        recyclerViewImages.setAdapter(imagesAdapter);
+        recyclerViewImages.setHasFixedSize(true); // Previne rearanjarea accidentală
+        recyclerViewImages.setItemViewCacheSize(20);
+
+        // Ad si adapterul pt vizualizare full-screen
+        FullImageAdapter fullImageAdapter = new FullImageAdapter(this, selectedImages);
+        recyclerViewImages.setAdapter(fullImageAdapter);
 
         // Add spacing between grid items
         recyclerViewImages.addItemDecoration(new RecyclerView.ItemDecoration() {
@@ -122,6 +146,7 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
 
         loadImages();
     }
+
 
 
     private void checkPermissionsAndOpenGallery() {
@@ -193,11 +218,6 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
     }
 
 
-
-    private void generateLink() {
-        Toast.makeText(this, "Link generated for " + selectedImages.size() + " images!", Toast.LENGTH_SHORT).show();
-    }
-
     private void saveImages() {
         SharedPreferences prefs = getSharedPreferences("TransferlyPrefs", MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
@@ -253,11 +273,96 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
     }
 
 
-
     @Override
     protected void onPause() {
         super.onPause();
         saveImages();
+    }
+
+
+
+    private String getRealPathFromURI(Uri uri) {
+        String result = null;
+        String[] projection = {MediaStore.Images.Media.DATA};
+        Cursor cursor = getContentResolver().query(uri, projection, null, null, null);
+        if (cursor != null) {
+            int columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+            if (cursor.moveToFirst()) {
+                result = cursor.getString(columnIndex);
+            }
+            cursor.close();
+        }
+        return result;
+    }
+
+
+
+    private void generateLink() {
+        if (selectedImages.isEmpty()) {
+            Toast.makeText(this, "Nu s-au selectat imagini", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                String serverUrl = "http://192.168.1.128:8080/api/upload";
+                for (Uri uri : selectedImages) {
+                    String filePath = getRealPathFromURI(uri);
+                    File file = new File(filePath);
+
+                    RequestBody requestBody = new MultipartBody.Builder()
+                            .setType(MultipartBody.FORM)
+                            .addFormDataPart("file", file.getName(),
+                                    RequestBody.create(MediaType.parse("image/*"), file))
+                            .build();
+
+                    okhttp3.Request request = new okhttp3.Request.Builder()
+                            .url(serverUrl)
+                            .post(requestBody)
+                            .build();
+
+
+                    OkHttpClient client = new OkHttpClient();
+                    Response response = client.newCall(request).execute();
+
+                    if (!response.isSuccessful()) {
+                        throw new IOException("Unexpected code " + response);
+                    }
+
+                    String link = response.body().string();
+                    runOnUiThread(() -> showPopupWithLink(link));
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(this, "Upload error", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+
+    private void showPopupWithLink(String link) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View view = getLayoutInflater().inflate(R.layout.popup_generate_link, null);
+        builder.setView(view);
+        AlertDialog dialog = builder.create();
+
+        EditText linkText = view.findViewById(R.id.linkText);
+        linkText.setText(link);
+
+        view.findViewById(R.id.copyButton).setOnClickListener(v -> {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            ClipData clip = ClipData.newPlainText("Shared Link", link);
+            clipboard.setPrimaryClip(clip);
+            Toast.makeText(this, "Link copied", Toast.LENGTH_SHORT).show();
+        });
+
+        view.findViewById(R.id.shareButton).setOnClickListener(v -> {
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType("text/plain");
+            shareIntent.putExtra(Intent.EXTRA_TEXT, link);
+            startActivity(Intent.createChooser(shareIntent, "Share via"));
+        });
+
+        dialog.show();
     }
 
 

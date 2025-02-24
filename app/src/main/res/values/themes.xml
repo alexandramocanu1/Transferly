@@ -8,5 +8,26 @@
         <item name="colorOnSurface">@color/black</item>
     </style>
 
-    <style name="Theme.Transferly" parent="Base.Theme.Transferly" />
+
+
+    <style name="Theme.Transferly" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary colors -->
+        <item name="colorPrimary">@color/purple_500</item>
+        <item name="colorPrimaryVariant">@color/purple_700</item>
+        <item name="colorOnPrimary">@color/white</item>
+
+        <!-- Background -->
+        <item name="android:windowBackground">@color/white</item>
+
+        <!-- Status Bar -->
+        <item name="android:statusBarColor">@color/purple_700</item>
+
+        <!-- Navigation Bar -->
+        <item name="android:navigationBarColor">@color/black</item>
+
+    </style>
+
 </resources>
+
+
+    <!--    <style name="Theme.Transferly" parent="Base.Theme.Transferly" />-->

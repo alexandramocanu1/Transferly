@@ -1,11 +1,15 @@
 package com.example.transferly.activities;
 
+import static com.example.transferly.activities.FolderDetailActivity.PREFS_NAME;
+
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
@@ -13,6 +17,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.transferly.R;
 import com.example.transferly.adapters.FolderAdapter;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,31 +38,49 @@ public class SharedFoldersActivity extends AppCompatActivity {
         foldersRecyclerView = findViewById(R.id.foldersRecyclerView);
         ImageButton addFolderButton = findViewById(R.id.addFolderButton);
 
-        // init lista de foldere
-        folders = new ArrayList<>();
+        // Inițializează lista de foldere
+        loadMainFolders();
 
+        // Actualizează titlul și afișarea folderelor
         updateFoldersCount(folders.size());
         setupRecyclerView();
 
-        // Config butonul pentru a ad foldere
+        // Configurează butonul pentru a adăuga foldere
         addFolderButton.setOnClickListener(view -> showAddFolderDialog());
 
-        // config bara de navigare
+        // Configurează bara de navigare
         setupBottomNavigation();
     }
 
     private void setupRecyclerView() {
+        List<String> selectedFolders = new ArrayList<>(); // Inițializăm lista de foldere selectate
+
         foldersRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
-        adapter = new FolderAdapter(folders, this::openFolder);
+        adapter = new FolderAdapter(
+                this,
+                folders,
+                selectedFolders,
+                folderName -> openFolder(folderName), // Click pe folder
+                folderName -> {
+                    // Apăsare lungă pentru selectare/deselectare
+                    if (selectedFolders.contains(folderName)) {
+                        selectedFolders.remove(folderName);
+                    } else {
+                        selectedFolders.add(folderName);
+                    }
+                    adapter.notifyDataSetChanged(); // Actualizăm vizual selecțiile
+                }
+        );
         foldersRecyclerView.setAdapter(adapter);
     }
+
+
 
     private void showAddFolderDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Add Folder");
         builder.setMessage("Enter the name of the folder:");
 
-        // fol EditText pentru introducerea textului
         final EditText input = new EditText(this);
         input.setHint("Folder name");
         input.setPadding(20, 20, 20, 20);
@@ -64,10 +88,19 @@ public class SharedFoldersActivity extends AppCompatActivity {
 
         builder.setPositiveButton("Create", (dialog, which) -> {
             String folderName = input.getText().toString().trim();
-            if (!folderName.isEmpty()) {
+            if (folderName.isEmpty()) {
+                Toast.makeText(this, "Folder name cannot be empty", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Verific dc exista deja un folder cu ac nume
+            if (folders.contains(folderName)) {
+                Toast.makeText(this, "A folder with this name already exists", Toast.LENGTH_SHORT).show();
+            } else {
                 folders.add(folderName);
                 adapter.notifyDataSetChanged();
                 updateFoldersCount(folders.size());
+                saveMainFolders(); // Salvăm folderele după adăugare
             }
         });
 
@@ -81,9 +114,13 @@ public class SharedFoldersActivity extends AppCompatActivity {
     }
 
     private void openFolder(String folderName) {
-        Intent intent = new Intent(this, FolderDetailActivity.class);
-        intent.putExtra("FOLDER_NAME", folderName);
-        startActivity(intent);
+        if (folders.contains(folderName)) {
+            Intent intent = new Intent(this, FolderDetailActivity.class);
+            intent.putExtra("FOLDER_NAME", folderName);
+            startActivity(intent);
+        } else {
+            Toast.makeText(this, "Folder not found", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void setupBottomNavigation() {
@@ -106,5 +143,32 @@ public class SharedFoldersActivity extends AppCompatActivity {
             }
             return false;
         });
+    }
+
+    private static final String KEY_MAIN_FOLDERS = "MAIN_FOLDERS";
+
+    private void saveMainFolders() {
+        SharedPreferences sharedPreferences = getSharedPreferences(FolderDetailActivity.PREFS_NAME, MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        Gson gson = new Gson();
+        String foldersJson = gson.toJson(folders);
+        editor.putString(KEY_MAIN_FOLDERS, foldersJson);
+        editor.apply();
+    }
+
+    private void loadMainFolders() {
+        SharedPreferences sharedPreferences = getSharedPreferences(FolderDetailActivity.PREFS_NAME, MODE_PRIVATE);
+        Gson gson = new Gson();
+        String foldersJson = sharedPreferences.getString(KEY_MAIN_FOLDERS, null);
+        if (foldersJson != null) {
+            folders = gson.fromJson(foldersJson, new TypeToken<List<String>>() {}.getType());
+        } else {
+            folders = new ArrayList<>();
+        }
+
+        // Debugging
+        if (folders.isEmpty()) {
+            Toast.makeText(this, "No folders found", Toast.LENGTH_SHORT).show();
+        }
     }
 }

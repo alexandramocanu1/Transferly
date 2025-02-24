@@ -1,57 +1,88 @@
 package com.example.transferly.adapters;
 
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.example.transferly.R;
+
+import java.util.ArrayList;
 import java.util.List;
 
 public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.FolderViewHolder> {
-    private final List<String> folderList;
-    private final OnFolderClickListener listener;
 
-    public FolderAdapter(List<String> folderList, OnFolderClickListener listener) {
-        this.folderList = folderList;
-        this.listener = listener;
+    private final Context context;
+    private final List<String> folders;
+    private final List<String> selectedFolders;
+    private final OnFolderClickListener clickListener;
+    private final OnFolderLongClickListener longClickListener;
+
+    public interface OnFolderClickListener {
+        void onFolderClick(String folderName);
+    }
+
+    public interface OnFolderLongClickListener {
+        void onFolderLongClick(String folderName);
+    }
+
+    // Constructor complet
+    public FolderAdapter(Context context, List<String> folders, List<String> selectedFolders,
+                         OnFolderClickListener clickListener, OnFolderLongClickListener longClickListener) {
+        this.context = context;
+        this.folders = folders;
+        this.selectedFolders = selectedFolders != null ? selectedFolders : new ArrayList<>();
+        this.clickListener = clickListener;
+        this.longClickListener = longClickListener;
     }
 
     @NonNull
     @Override
     public FolderViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.folder_item, parent, false);
+        View view = LayoutInflater.from(context).inflate(R.layout.folder_item, parent, false);
         return new FolderViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull FolderViewHolder holder, int position) {
-        String folderName = folderList.get(position);
-        holder.folderNameTextView.setText(folderName);
-        holder.folderIconImageView.setImageResource(R.drawable.ic_folder);
+        String folderName = folders.get(position);
 
-        holder.itemView.setOnClickListener(v -> listener.onFolderClick(folderName));
+        // Setăm iconița folderului
+        holder.folderIcon.setImageResource(R.drawable.ic_folder);
+        holder.folderName.setText(folderName);
+
+        // Afișăm cerculețul dacă folderul este selectat
+        holder.selectCircle.setVisibility(selectedFolders.contains(folderName) ? View.VISIBLE : View.GONE);
+
+        // Click pe folder
+        holder.itemView.setOnClickListener(v -> clickListener.onFolderClick(folderName));
+
+        // Apăsare lungă pe folder
+        holder.itemView.setOnLongClickListener(v -> {
+            longClickListener.onFolderLongClick(folderName);
+            return true;
+        });
     }
 
     @Override
     public int getItemCount() {
-        return folderList.size();
+        return folders.size();
     }
 
     static class FolderViewHolder extends RecyclerView.ViewHolder {
-        TextView folderNameTextView;
-        ImageView folderIconImageView;
+        ImageView folderIcon, selectCircle;
+        TextView folderName;
 
         public FolderViewHolder(@NonNull View itemView) {
             super(itemView);
-            folderNameTextView = itemView.findViewById(R.id.folderNameTextView);
-            folderIconImageView = itemView.findViewById(R.id.folderIconImageView);
+            folderIcon = itemView.findViewById(R.id.folderIcon);
+            selectCircle = itemView.findViewById(R.id.selectCircle);
+            folderName = itemView.findViewById(R.id.folderName);
         }
-    }
-
-    public interface OnFolderClickListener {
-        void onFolderClick(String folderName);
     }
 }

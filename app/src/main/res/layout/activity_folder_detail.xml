@@ -90,4 +90,33 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:visibility="gone" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/subfoldersRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Cerculeț pentru like -->
+    <ImageView
+        android:id="@+id/likeCircle"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="start|top"
+        android:layout_margin="16dp"
+        android:src="@drawable/ic_circle"
+        android:visibility="gone" />
+
+    <!-- Cerculeț pentru ștergere -->
+    <ImageView
+        android:id="@+id/deleteCircle"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="end|top"
+        android:layout_margin="16dp"
+        android:src="@drawable/ic_circle"
+        android:visibility="gone" />
+
+
 </LinearLayout>

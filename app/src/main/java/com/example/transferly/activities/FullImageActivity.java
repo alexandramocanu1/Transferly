@@ -5,68 +5,99 @@ import android.os.Bundle;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.ImageView;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.GestureDetectorCompat;
 import androidx.viewpager2.widget.ViewPager2;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions;
+import com.bumptech.glide.request.RequestOptions;
 import com.example.transferly.R;
 import com.example.transferly.adapters.FullImageAdapter;
 
 import java.util.List;
 
+import jp.wasabeef.glide.transformations.BlurTransformation;
+
 public class FullImageActivity extends AppCompatActivity {
 
-    private GestureDetector gestureDetector;
+    private ViewPager2 viewPager;
+    private ImageView blurredBackground;
+    private View backgroundOverlay;
+    private GestureDetectorCompat gestureDetector;
+
+    private static final int SWIPE_THRESHOLD_Y = 200;
+    private static final int SWIPE_VELOCITY_THRESHOLD = 150;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_full_image);
 
-        ViewPager2 viewPager = findViewById(R.id.viewPager);
+        viewPager = findViewById(R.id.viewPager);
+        blurredBackground = findViewById(R.id.blurredBackground);
+        backgroundOverlay = findViewById(R.id.backgroundOverlay);
 
-        // Obt lista de imagini si poziția curenta
         List<Uri> imageUris = getIntent().getParcelableArrayListExtra("images");
         int currentPosition = getIntent().getIntExtra("position", 0);
 
         if (imageUris != null && !imageUris.isEmpty()) {
-            FullImageAdapter adapter = new FullImageAdapter(imageUris);
+            FullImageAdapter adapter = new FullImageAdapter(this, imageUris);
             viewPager.setAdapter(adapter);
-            viewPager.setCurrentItem(currentPosition);
+            viewPager.setCurrentItem(currentPosition, false);
+            applyBlurEffect(imageUris.get(currentPosition));
         }
 
-        // init GestureDetector
-        gestureDetector = new GestureDetector(this, new GestureListener());
+        viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
+            @Override
+            public void onPageSelected(int position) {
+                applyBlurEffect(imageUris.get(position));
+            }
+        });
 
-        // Set un OnTouchListener pt ViewPager2
-        viewPager.getChildAt(0).setOnTouchListener((v, event) -> gestureDetector.onTouchEvent(event));
+        backgroundOverlay.setOnClickListener(v -> finishWithAnimation());
+
+        gestureDetector = new GestureDetectorCompat(this, new GestureListener());
+
+        // pun OnTouchListener pe ViewPager2 pt a detecta swipe-ul in jos
+        viewPager.getChildAt(0).setOnTouchListener((v, event) -> {
+            gestureDetector.onTouchEvent(event);
+            return false; // ViewPager2 inca primeste evenimente
+        });
+    }
+
+    private void applyBlurEffect(Uri imageUri) {
+        Glide.with(this)
+                .asBitmap()
+                .load(imageUri)
+                .apply(RequestOptions.bitmapTransform(new BlurTransformation(25, 3)))
+                .transition(BitmapTransitionOptions.withCrossFade())
+                .into(blurredBackground);
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        gestureDetector.onTouchEvent(event);
+        return super.dispatchTouchEvent(event);
     }
 
     private class GestureListener extends GestureDetector.SimpleOnGestureListener {
-
-        private static final int SWIPE_THRESHOLD = 200;
-        private static final int SWIPE_VELOCITY_THRESHOLD = 200;
-
-        @Override
-        public boolean onDown(MotionEvent e) {
-            return true; // pt a detecta alte gesturi
-        }
-
         @Override
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
             float diffY = e2.getY() - e1.getY();
 
-            if (diffY > SWIPE_THRESHOLD && Math.abs(velocityY) > SWIPE_VELOCITY_THRESHOLD) {
-                // swipe în jos
-                onSwipeDown();
+            if (diffY > SWIPE_THRESHOLD_Y && Math.abs(velocityY) > SWIPE_VELOCITY_THRESHOLD) {
+                finishWithAnimation();
                 return true;
             }
             return false;
         }
     }
 
-    private void onSwipeDown() {
-        finish(); // inchid activitatea
-        overridePendingTransition(0, R.anim.slide_out_down); // animatie de închidere
+    private void finishWithAnimation() {
+        finish();
+        overridePendingTransition(0, R.anim.slide_out_down);
     }
 }

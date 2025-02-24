@@ -51,4 +51,15 @@ dependencies {
 
     implementation("org.mindrot:jbcrypt:0.4")
 
+    implementation ("com.google.code.gson:gson:2.8.9")
+
+    implementation ("org.nanohttpd:nanohttpd:2.3.1")
+
+    implementation ("com.squareup.okhttp3:okhttp:4.9.3")
+
+    implementation ("com.google.android.material:material:1.11.0")
+
+    implementation("jp.wasabeef:glide-transformations:4.3.0")
+
+
 }

@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
@@ -5,43 +6,73 @@
     android:padding="16dp"
     android:orientation="vertical">
 
+    <!-- Titlu -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Link Generated!"
         android:textSize="16sp"
         android:textStyle="bold"
-        android:layout_gravity="center"/>
+        android:textColor="@android:color/black"
+        android:layout_gravity="center"
+        android:paddingBottom="10dp"/>
 
-    <EditText
-        android:id="@+id/linkText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:focusable="false"/>
-
+    <!-- Container pentru link + butonul de copiere -->
     <LinearLayout
-        android:orientation="horizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="end">
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <EditText
+            android:id="@+id/linkText"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:focusable="false"
+            android:textSize="14sp"
+            android:background="@android:color/transparent"
+            android:padding="10dp"
+            android:textColor="@android:color/black"
+            android:gravity="center_vertical"/>
 
         <ImageView
             android:id="@+id/copyButton"
             android:src="@drawable/ic_copy"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:padding="8dp"/>
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"/>
+    </LinearLayout>
+
+    <!-- Butoanele Cancel și Share -->
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingTop="16dp">
+
+        <Button
+            android:id="@+id/closeButton"
+            android:text="Cancel"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/white"
+            android:backgroundTint="@android:color/black"
+            android:paddingHorizontal="16dp"/>
 
         <Button
             android:id="@+id/shareButton"
             android:text="Share"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-
-        <Button
-            android:text="Close"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
+            android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:onClick="dismissPopup"/>
+            android:textColor="@android:color/white"
+            android:backgroundTint="?attr/colorPrimary"
+            android:paddingHorizontal="16dp"/>
     </LinearLayout>
+
 </LinearLayout>

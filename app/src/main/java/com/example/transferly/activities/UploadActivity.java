@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -98,13 +99,13 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
         // RecyclerView configuration
         imagesAdapter = new ImagesAdapter(this, selectedImages, this);
         recyclerViewImages.setLayoutManager(new GridLayoutManager(this, 3)); // 3 items per row
-//        recyclerViewImages.setAdapter(imagesAdapter);
-        recyclerViewImages.setHasFixedSize(true); // Previne rearanjarea accidentală
+        recyclerViewImages.setAdapter(imagesAdapter);
+        recyclerViewImages.setHasFixedSize(true); // Previne rearanjarea accidentala
         recyclerViewImages.setItemViewCacheSize(20);
 
         // Ad si adapterul pt vizualizare full-screen
-        FullImageAdapter fullImageAdapter = new FullImageAdapter(this, selectedImages);
-        recyclerViewImages.setAdapter(fullImageAdapter);
+//        FullImageAdapter fullImageAdapter = new FullImageAdapter(this, selectedImages);
+//        recyclerViewImages.setAdapter(fullImageAdapter);
 
         // Add spacing between grid items
         recyclerViewImages.addItemDecoration(new RecyclerView.ItemDecoration() {
@@ -305,7 +306,10 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
 
         new Thread(() -> {
             try {
-                String serverUrl = "http://192.168.1.128:8080/api/upload";
+                String serverUrl = "http://192.168.100.52:8080/api/upload";
+                OkHttpClient client = new OkHttpClient();
+                List<String> uploadedFileNames = new ArrayList<>();
+
                 for (Uri uri : selectedImages) {
                     String filePath = getRealPathFromURI(uri);
                     File file = new File(filePath);
@@ -321,23 +325,30 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
                             .post(requestBody)
                             .build();
 
-
-                    OkHttpClient client = new OkHttpClient();
                     Response response = client.newCall(request).execute();
+                    String responseBody = response.body().string().trim();
 
                     if (!response.isSuccessful()) {
-                        throw new IOException("Unexpected code " + response);
+                        throw new IOException("Unexpected response: " + responseBody);
                     }
 
-                    String link = response.body().string();
-                    runOnUiThread(() -> showPopupWithLink(link));
+                    uploadedFileNames.add(responseBody);
                 }
+
+                // Generează link-ul catre pagina HTML care conține toate imaginile
+                String galleryUrl = "http://192.168.100.52:8080/gallery?files=" + String.join(",", uploadedFileNames);
+
+                runOnUiThread(() -> showPopupWithLink(galleryUrl));
+
             } catch (Exception e) {
                 e.printStackTrace();
-                runOnUiThread(() -> Toast.makeText(this, "Upload error", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(this, "Upload error: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
     }
+
+
+
 
     private void showPopupWithLink(String link) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -362,8 +373,10 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
             startActivity(Intent.createChooser(shareIntent, "Share via"));
         });
 
+        // 🔹 Inchiderea pop-up-ului
+        view.findViewById(R.id.closeButton).setOnClickListener(v -> dialog.dismiss());
+
         dialog.show();
     }
-
 
 }

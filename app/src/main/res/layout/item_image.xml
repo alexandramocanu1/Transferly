@@ -4,16 +4,16 @@
     android:layout_height="wrap_content"
     android:layout_margin="4dp">
 
-    <!-- Imagine cu colturi rotunjite care nu merg -->
+    <!-- Imaginea -->
     <ImageView
         android:id="@+id/imageView"
         android:layout_width="match_parent"
         android:layout_height="150dp"
         android:scaleType="centerCrop"
         android:background="@drawable/rounded_corner_background"
-        android:contentDescription="Image with Rounded Corners" />
+        android:contentDescription="Image" />
 
-    <!-- Buton pentru stergerea imaginii -->
+    <!-- Buton delete -->
     <ImageView
         android:id="@+id/deleteButton"
         android:layout_width="24dp"
@@ -21,6 +21,6 @@
         android:layout_gravity="end|top"
         android:layout_margin="8dp"
         android:src="@drawable/ic_delete"
-        android:contentDescription="Delete Image"
-        app:tint="@android:color/holo_red_dark" />
+        android:contentDescription="Remove Image"
+        app:tint="@null"/>
 </FrameLayout>

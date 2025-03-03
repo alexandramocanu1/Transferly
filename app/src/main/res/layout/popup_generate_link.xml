@@ -46,7 +46,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"/>
     </LinearLayout>
 
-    <!-- Butoanele Cancel și Share -->
+    <!-- Butoanele Cancel/ Share -->
     <LinearLayout
         android:orientation="horizontal"
         android:layout_width="match_parent"

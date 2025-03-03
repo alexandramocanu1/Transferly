@@ -10,6 +10,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
@@ -48,50 +49,53 @@ public class ImagesAdapter extends RecyclerView.Adapter<ImagesAdapter.ImageViewH
     public void onBindViewHolder(@NonNull ImageViewHolder holder, int position) {
         Uri imageUri = images.get(position);
 
-        // Glide ca sa incarc imaginile in ImageView
+        // Incarca imaginea cu Glide
         Glide.with(context)
                 .load(imageUri)
                 .into(holder.imageView);
 
-        // delete button functionality
-        holder.itemView.findViewById(R.id.deleteButton).setOnClickListener(v -> {
+        holder.deleteButton.clearColorFilter(); // Elimina orice tint aplicat automat
+
+        // butonul de stergere
+        holder.deleteButton.setImageResource(R.drawable.ic_delete);
+
+        // ștergerea imaginii
+        holder.deleteButton.setOnClickListener(v -> {
             images.remove(position);
             notifyItemRemoved(position);
             notifyItemRangeChanged(position, images.size());
+
             if (images.isEmpty() && context instanceof UploadActivity) {
-                ((UploadActivity) context).onListEmptied(); // dc lista e goala
+                ((UploadActivity) context).onListEmptied();
             }
         });
 
-        // Set up click listener pt afisare img
+        // Click pentru vizualizare fullscreen
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(context, FullImageActivity.class);
-
-            // de plimbat printre img
-            if (images.size() == 1) {
-                // af imaginea
-                intent.putExtra("imageUri", imageUri.toString());
-            } else {
-                // navigare intre imagini st/dr
-                intent.putParcelableArrayListExtra("images", new ArrayList<>(images));
-                intent.putExtra("position", position);
-            }
-
+            intent.putParcelableArrayListExtra("images", new ArrayList<>(images));
+            intent.putExtra("position", position);
             context.startActivity(intent);
         });
     }
+
+
 
     @Override
     public int getItemCount() {
         return images.size();
     }
 
+
     public static class ImageViewHolder extends RecyclerView.ViewHolder {
         ImageView imageView;
+        ImageView deleteButton; // butonul de ștergere
 
         public ImageViewHolder(@NonNull View itemView) {
             super(itemView);
             imageView = itemView.findViewById(R.id.imageView);
+            deleteButton = itemView.findViewById(R.id.deleteButton);
         }
     }
+
 }

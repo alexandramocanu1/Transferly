@@ -1,93 +1,90 @@
-<androidx.coordinatorlayout.widget.CoordinatorLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/background_gradient">
 
+    <!-- Bara de sus -->
     <LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
-
-    <!-- Listă de prieteni -->
-    <ScrollView
+        android:id="@+id/topBar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_weight="1">
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:background="#80000000"
+        android:gravity="center_vertical" />
 
-        <LinearLayout
+    <!-- Continut principal -->
+    <LinearLayout
+        android:id="@+id/mainContainer"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="56dp"
+        android:padding="16dp">
+
+        <!-- Search field (ascuns initial) -->
+        <EditText
+            android:id="@+id/searchUsername"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:hint="Enter username to search"
+            android:visibility="gone"
+            android:inputType="text"
+            android:background="@drawable/rounded_edittext_bg"
+            android:padding="12dp"
+            android:textColorHint="#AAAAAA"
+            android:textColor="@android:color/white"
+            android:layout_marginBottom="8dp" />
 
-            <!-- Un prieten -->
+        <Button
+            android:id="@+id/searchButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Search"
+            android:visibility="gone"
+            android:backgroundTint="@color/purple"
+            android:textColor="@android:color/white"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Lista de prieteni -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
             <LinearLayout
+                android:id="@+id/friendsListContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:padding="8dp"
-                android:background="@android:color/darker_gray"
-                android:layout_marginBottom="8dp">
+                android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:text="Letiția"
-                    android:layout_weight="1"
-                    android:padding="8dp"/>
-
-                <Button
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Shared Folders"/>
+                <!-- alt prieten etc. -->
             </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
 
-            <!-- Un alt prieten -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:padding="8dp"
-                android:background="@android:color/darker_gray"
-                android:layout_marginBottom="8dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:text="Ana"
-                    android:layout_weight="1"
-                    android:padding="8dp"/>
-
-                <Button
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Shared Folders"/>
-            </LinearLayout>
-        </LinearLayout>
-    </ScrollView>
-
-    <!-- Buton pentru a adăuga un prieten -->
-    <Button
+    <!-- Buton rotund pentru adaugare -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/addFriendButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginBottom="90dp"
+        android:layout_marginEnd="24dp"
+        android:src="@drawable/ic_friends"
+        android:contentDescription="Add Friend"
+        app:backgroundTint="@color/purple" />
+
+    <!-- Navigare jos -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNavigationView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Add Friend"
-        android:background="@android:color/holo_blue_light"
-        android:textColor="@android:color/white"/>
+        android:layout_gravity="bottom"
+        android:background="#111A20"
+        app:menu="@menu/bottom_navigation_menu"
+        app:itemIconTint="@color/gray"
+        app:itemTextColor="@color/gray"
+        app:labelVisibilityMode="labeled" />
 
-
-</LinearLayout>
-
-<com.google.android.material.bottomnavigation.BottomNavigationView
-android:id="@+id/bottomNavigationView"
-android:layout_width="match_parent"
-android:layout_height="wrap_content"
-android:layout_gravity="bottom"
-app:menu="@menu/bottom_navigation_menu"
-android:background="@android:color/white" />
-
-    </androidx.coordinatorlayout.widget.CoordinatorLayout>
-
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -27,9 +27,10 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
+
     buildFeatures {
         viewBinding = true
     }
@@ -55,11 +56,18 @@ dependencies {
 
     implementation ("org.nanohttpd:nanohttpd:2.3.1")
 
-    implementation ("com.squareup.okhttp3:okhttp:4.9.3")
-
     implementation ("com.google.android.material:material:1.11.0")
 
     implementation("jp.wasabeef:glide-transformations:4.3.0")
 
+    implementation ("com.google.android.gms:play-services-auth:20.7.0")
+
+    implementation ("commons-net:commons-net:3.8.0")
+
+    implementation ("com.squareup.okhttp3:okhttp:4.10.0")
+
+    implementation ("org.json:json:20210307")
+
+    implementation ("com.android.volley:volley:1.2.1")
 
 }

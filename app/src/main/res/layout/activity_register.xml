@@ -22,11 +22,21 @@
         android:id="@+id/emailInput"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Username or Email"
+        android:hint="Email"
         android:inputType="textEmailAddress"
         android:padding="12dp"
         android:background="@android:color/darker_gray"
         android:layout_marginBottom="12dp"/>
+
+    <EditText
+        android:id="@+id/usernameInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Username"
+        android:background="@android:color/darker_gray"
+        android:inputType="textPersonName"
+        android:layout_marginBottom="12dp"/>
+
 
     <!-- Câmp pentru parolă -->
     <EditText

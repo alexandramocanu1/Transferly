@@ -31,6 +31,11 @@ public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.FolderView
         void onFolderLongClick(String folderName);
     }
 
+    public List<String> getFolders() {
+        return folders;
+    }
+
+
     // Constructor complet
     public FolderAdapter(Context context, List<String> folders, List<String> selectedFolders,
                          OnFolderClickListener clickListener, OnFolderLongClickListener longClickListener) {
@@ -52,11 +57,11 @@ public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.FolderView
     public void onBindViewHolder(@NonNull FolderViewHolder holder, int position) {
         String folderName = folders.get(position);
 
-        // Setăm iconița folderului
+        // Set iconita folderului
         holder.folderIcon.setImageResource(R.drawable.ic_folder);
         holder.folderName.setText(folderName);
 
-        // Afișăm cerculețul dacă folderul este selectat
+        // Afisez cerculetul dc folderul este selectat
         holder.selectCircle.setVisibility(selectedFolders.contains(folderName) ? View.VISIBLE : View.GONE);
 
         // Click pe folder

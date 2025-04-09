@@ -1,14 +1,18 @@
 <resources>
-    <!-- Numele aplicației -->
+    <!-- Numele aplicatiei -->
     <string name="app_name">Transferly</string>
 
-    <!-- Texte lipsă folosite în layout-uri -->
+    <!-- Texte lipsa fol in layout-uri -->
     <string name="next">Next</string>
     <string name="previous">Previous</string>
     <string name="lorem_ipsum">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</string>
     <string name="action_settings">Settings</string>
 
-    <!-- Texte pentru fragmentele de navigație -->
+    <!-- pt fragmentele de navigatie -->
     <string name="first_fragment_label">First Fragment</string>
     <string name="second_fragment_label">Second Fragment</string>
+
+    <!-- pt logare google -->
+    <string name="default_web_client_id">995314354054-r6lhbmkug033vn7vhfbnn3sbjucguh2u.apps.googleusercontent.com</string>
+
 </resources>

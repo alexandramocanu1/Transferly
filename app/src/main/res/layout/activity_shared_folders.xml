@@ -3,7 +3,29 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/background_gradient">
+    android:background="@drawable/background_gradient"
+    android:fitsSystemWindows="true">
+
+
+    <!-- Bara de sus -->
+    <LinearLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:background="#80000000"
+        android:gravity="center_vertical" />
+
+    <ImageButton
+        android:id="@+id/deleteFoldersButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_delete"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:visibility="gone"
+        android:layout_marginStart="16dp"
+        android:contentDescription="Delete selected folders"/>
+
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -12,7 +34,7 @@
         android:padding="16dp"
         android:background="@drawable/background_gradient">
 
-        <!-- Titlu: Foldere Partajate -->
+        <!-- Titlu -->
         <TextView
             android:id="@+id/sharedFoldersTitle"
             android:layout_width="match_parent"
@@ -23,7 +45,7 @@
             android:gravity="center"
             android:paddingBottom="16dp"/>
 
-        <!-- Grid pentru foldere -->
+        <!-- Grid -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/foldersRecyclerView"
             android:layout_width="match_parent"
@@ -31,29 +53,30 @@
             android:layout_weight="1"
             android:clipToPadding="false"
             android:padding="8dp"/>
-
-        <!-- Buton pentru a adăuga un folder -->
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/addFolderButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/ic_plus"
-            android:layout_gravity="end|bottom"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="80dp"
-        android:contentDescription="Add Folder" />
-
-
-
     </LinearLayout>
 
+    <!-- FAB (scos din LinearLayout!) -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/addFolderButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="100dp"
+        android:src="@drawable/ic_plus"
+        android:contentDescription="Add Folder"
+        app:backgroundTint="@color/purple" />
+
+    <!-- Bottom Navigation -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNavigationView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
+        android:background="#111A20"
         app:menu="@menu/bottom_navigation_menu"
-        android:background="@android:color/white"/>
-
+        app:itemIconTint="@color/gray"
+        app:itemTextColor="@color/gray"
+        app:labelVisibilityMode="labeled" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

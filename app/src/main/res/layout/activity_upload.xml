@@ -3,7 +3,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     xmlns:tools="http://schemas.android.com/tools"
-    android:background="@drawable/background_gradient">
+    android:background="@drawable/background_gradient"
+    android:fitsSystemWindows="true">
 
     <!-- Transparent Top Bar -->
     <LinearLayout
@@ -57,17 +58,6 @@
         app:layout_anchorGravity="center"
         app:srcCompat="@drawable/ic_plus" />
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottomNavigationView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:background="@android:color/white"
-        app:menu="@menu/bottom_navigation_menu"
-        app:itemIconTint="@color/gray"
-        app:itemTextColor="@color/gray"
-        app:labelVisibilityMode="labeled" />
-
     <TextView
         android:id="@+id/uploadIntroText"
         android:layout_width="wrap_content"
@@ -79,4 +69,16 @@
         android:textSize="18sp"
         app:layout_anchor="@+id/linearLayout"
         app:layout_anchorGravity="center" />
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNavigationView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="#111A20"
+        app:menu="@menu/bottom_navigation_menu"
+        app:itemIconTint="@color/gray"
+        app:itemTextColor="@color/gray"
+        app:labelVisibilityMode="labeled" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

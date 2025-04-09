@@ -1,62 +1,65 @@
 package com.example.transferly.db;
 
-import android.content.ContentValues;
-import android.content.Context;
-import android.database.Cursor;
-import android.database.SQLException;
-import android.database.sqlite.SQLiteDatabase;
-import org.mindrot.jbcrypt.BCrypt;
-
+import android.util.Log;
+import org.json.JSONObject;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.Scanner;
 
 public class UserDatabaseHelper {
-    private SQLiteDatabase database;
-    private DatabaseHelper dbHelper;
+    private static final String SERVER_URL = "http://transferly.go.ro:8080/api/users"; // ip public pe port "server"
 
-    public UserDatabaseHelper(Context context) {
-        dbHelper = new DatabaseHelper(context);
-    }
+    // inregistrare user pe server
+    public boolean registerUser(String username, String email, String password) {
+        try {
+            URL url = new URL(SERVER_URL + "/register");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setInstanceFollowRedirects(false); // ⚠️ Adaugă asta aici
+            conn.setDoOutput(true);
 
-    // Deschide baza de date
-    public void open() throws SQLException {
-        database = dbHelper.getWritableDatabase();
-    }
+            JSONObject userJson = new JSONObject();
+            userJson.put("username", username);
+            userJson.put("email", email); // 🔥 Adaugă-l!
+            userJson.put("password", password);
 
-    // Închide baza de date
-    public void close() {
-        dbHelper.close();
-    }
+            OutputStream os = conn.getOutputStream();
+            os.write(userJson.toString().getBytes());
+            os.flush();
+            os.close();
 
-    // Adaugă un nou utilizator (username + parolă criptată)
-    public long addUser(String username, String password) {
-        ContentValues values = new ContentValues();
-        values.put(DatabaseHelper.COLUMN_USERNAME, username);
-        values.put(DatabaseHelper.COLUMN_PASSWORD, hashPassword(password));
-        return database.insert(DatabaseHelper.TABLE_USERS, null, values);
-    }
-
-    // Verifică dacă un utilizator cu username și parolă există
-    public boolean validateUser(String username, String password) {
-        Cursor cursor = database.query(DatabaseHelper.TABLE_USERS,
-                null,
-                DatabaseHelper.COLUMN_USERNAME + "=?",
-                new String[]{username},
-                null, null, null);
-
-        if (cursor != null && cursor.moveToFirst()) {
-            String storedPasswordHash = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_PASSWORD));
-            cursor.close();
-            return checkPassword(password, storedPasswordHash);
+            return conn.getResponseCode() == 200;
+        } catch (Exception e) {
+            Log.e("UserDatabaseHelper", "Eroare la înregistrare: " + e.getMessage());
+            return false;
         }
-        return false;
     }
 
-    // Criptarea parolei folosind bcrypt
-    private String hashPassword(String password) {
-        return BCrypt.hashpw(password, BCrypt.gensalt());
-    }
 
-    // Verificarea parolei
-    private boolean checkPassword(String password, String storedPasswordHash) {
-        return BCrypt.checkpw(password, storedPasswordHash);
+    // validare autentificare user pe server
+    public boolean loginUser(String username, String password) {
+        try {
+            URL url = new URL(SERVER_URL + "/login");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
+
+            JSONObject loginJson = new JSONObject();
+            loginJson.put("username", username);
+            loginJson.put("password", password);
+
+            OutputStream os = conn.getOutputStream();
+            os.write(loginJson.toString().getBytes());
+            os.flush();
+            os.close();
+
+            return conn.getResponseCode() == 200;
+        } catch (Exception e) {
+            Log.e("UserDatabaseHelper", "Eroare la autentificare: " + e.getMessage());
+            return false;
+        }
     }
 }

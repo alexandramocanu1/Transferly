@@ -27,6 +27,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -96,12 +97,27 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
 
     private FloatingActionButton fabUpload, fabAdd, fabGenerateLink;
 
-
+    private long backPressedTime = 0;
+    private Toast backToast;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_upload);
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (backPressedTime + 2000 > System.currentTimeMillis()) {
+                    if (backToast != null) backToast.cancel();
+                    finishAffinity(); // inchide complet aplicatia la double back
+                } else {
+                    backToast = Toast.makeText(UploadActivity.this, "Press back again to exit", Toast.LENGTH_SHORT);
+                    backToast.show();
+                    backPressedTime = System.currentTimeMillis();
+                }
+            }
+        });
 
         // apelez checkPermissionsAndOpenGallery() la inceput pt a asigura ca are permisiuni
 //        checkPermissionsAndOpenGallery();

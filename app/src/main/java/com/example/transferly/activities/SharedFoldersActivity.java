@@ -16,6 +16,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -50,6 +51,7 @@ import androidx.annotation.Nullable;
 
 
 
+
 public class SharedFoldersActivity extends AppCompatActivity {
     private TextView sharedFoldersTitle;
     private RecyclerView foldersRecyclerView;
@@ -66,15 +68,28 @@ public class SharedFoldersActivity extends AppCompatActivity {
 
     private ItemTouchHelper touchHelper;
 
-
-
-
+    private long backPressedTime = 0;
+    private Toast backToast;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_shared_folders);
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (backPressedTime + 2000 > System.currentTimeMillis()) {
+                    if (backToast != null) backToast.cancel();
+                    finishAffinity(); // iese din aplicație
+                } else {
+                    backToast = Toast.makeText(SharedFoldersActivity.this, "Press back again to exit", Toast.LENGTH_SHORT);
+                    backToast.show();
+                    backPressedTime = System.currentTimeMillis();
+                }
+            }
+        });
 
         folderStructure = new HashMap<>();
         folderNames = new HashMap<>();

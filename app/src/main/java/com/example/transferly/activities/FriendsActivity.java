@@ -14,6 +14,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.android.volley.Request;
@@ -39,10 +40,27 @@ public class FriendsActivity extends AppCompatActivity {
 
     private RequestQueue requestQueue;
 
+    private long backPressedTime = 0;
+    private Toast backToast;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_friends);
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (backPressedTime + 2000 > System.currentTimeMillis()) {
+                    if (backToast != null) backToast.cancel();
+                    finishAffinity(); // iese din aplicație
+                } else {
+                    backToast = Toast.makeText(FriendsActivity.this, "Press back again to exit", Toast.LENGTH_SHORT);
+                    backToast.show();
+                    backPressedTime = System.currentTimeMillis();
+                }
+            }
+        });
 
         SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
         loggedInUsername = prefs.getString("username", "guest");

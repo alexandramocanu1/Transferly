@@ -54,7 +54,7 @@ public class ImagesAdapter extends RecyclerView.Adapter<ImagesAdapter.ImageViewH
                 .load(imageUri)
                 .into(holder.imageView);
 
-        holder.deleteButton.clearColorFilter(); // Elimina orice tint aplicat automat
+        holder.deleteButton.clearColorFilter();
 
         // butonul de stergere
         holder.deleteButton.setImageResource(R.drawable.ic_delete);
@@ -72,11 +72,14 @@ public class ImagesAdapter extends RecyclerView.Adapter<ImagesAdapter.ImageViewH
 
         // Click pentru vizualizare fullscreen
         holder.itemView.setOnClickListener(v -> {
-            Intent intent = new Intent(context, FullImageActivity.class);
-            intent.putParcelableArrayListExtra("images", new ArrayList<>(images));
-            intent.putExtra("position", position);
-            context.startActivity(intent);
+            if (context instanceof UploadActivity) {
+                Intent intent = new Intent(context, FullImageActivity.class);
+                intent.putParcelableArrayListExtra("images", new ArrayList<>(images));
+                intent.putExtra("position", position);
+                ((UploadActivity) context).startActivityForResult(intent, 123);
+            }
         });
+
     }
 
 
@@ -89,7 +92,7 @@ public class ImagesAdapter extends RecyclerView.Adapter<ImagesAdapter.ImageViewH
 
     public static class ImageViewHolder extends RecyclerView.ViewHolder {
         ImageView imageView;
-        ImageView deleteButton; // butonul de ștergere
+        ImageView deleteButton; // butonul de stergere
 
         public ImageViewHolder(@NonNull View itemView) {
             super(itemView);

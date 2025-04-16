@@ -44,7 +44,7 @@ public class FullImageAdapter extends RecyclerView.Adapter<FullImageAdapter.Full
 
         // Click pe imagine -> deschide FullImageActivity (dar vf sa nu fie deja deschis)
         holder.imageView.setOnClickListener(v -> {
-            if (!(context instanceof FullImageActivity)) { // Previne redeschiderea dacă este deja deschisă
+            if (!(context instanceof FullImageActivity)) {
                 Intent intent = new Intent(context, FullImageActivity.class);
                 intent.putParcelableArrayListExtra("images", new ArrayList<>(images));
                 intent.putExtra("position", position);

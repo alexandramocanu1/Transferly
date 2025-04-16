@@ -2,7 +2,9 @@ package com.example.transferly.adapters;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -12,6 +14,9 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.example.transferly.R;
+import com.example.transferly.activities.FullImageActivity;
+
+import java.util.ArrayList;
 import java.util.List;
 
 public class FolderImageAdapter extends RecyclerView.Adapter<FolderImageAdapter.ImageViewHolder> {
@@ -42,6 +47,21 @@ public class FolderImageAdapter extends RecyclerView.Adapter<FolderImageAdapter.
     @Override
     public void onBindViewHolder(@NonNull ImageViewHolder holder, int position) {
         String imageUri = imageUris.get(position);
+
+        holder.imageView.setOnClickListener(v -> {
+            ArrayList<Uri> imageUrisParcelable = new ArrayList<>();
+            for (String uriStr : imageUris) {
+                imageUrisParcelable.add(Uri.parse(uriStr));
+            }
+
+            Intent intent = new Intent(context, FullImageActivity.class);
+            intent.putParcelableArrayListExtra("images", imageUrisParcelable);
+            intent.putExtra("position", holder.getAdapterPosition());
+            context.startActivity(intent);
+        });
+
+
+
 
         // Load the image using Glide
         Glide.with(context)

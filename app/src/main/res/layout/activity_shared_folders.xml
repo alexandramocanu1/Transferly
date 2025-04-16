@@ -3,59 +3,64 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/background_gradient"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="true"
+    android:background="@drawable/background_gradient">
 
-
-    <!-- Bara de sus -->
+    <!-- Header fix, elevation mare -->
     <LinearLayout
         android:id="@+id/topBar"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:orientation="horizontal"
-        android:background="#80000000"
-        android:gravity="center_vertical" />
-
-    <ImageButton
-        android:id="@+id/deleteFoldersButton"
-        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:src="@drawable/ic_delete"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:visibility="gone"
-        android:layout_marginStart="16dp"
-        android:contentDescription="Delete selected folders"/>
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="8dp"
+        android:gravity="center_vertical"
+        android:background="@drawable/background_gradient"
+        android:elevation="12dp">
 
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="16dp"
-        android:background="@drawable/background_gradient">
-
-        <!-- Titlu -->
         <TextView
             android:id="@+id/sharedFoldersTitle"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
+            android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:text="Shared Folders (0)"
+            android:text="@string/shared_folders_title"
             android:textSize="20sp"
             android:textStyle="bold"
-            android:gravity="center"
-            android:paddingBottom="16dp"/>
-
-        <!-- Grid -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/foldersRecyclerView"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:clipToPadding="false"
-            android:padding="8dp"/>
+            android:textColor="@android:color/white"/>
     </LinearLayout>
 
-    <!-- FAB (scos din LinearLayout!) -->
+    <!-- RecyclerView cu top margin pentru a NU se duce sub topBar -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/foldersRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="72dp"
+        android:scrollbars="vertical"
+        android:clipToPadding="false"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="120dp"
+        android:paddingTop="8dp"/>
+
+
+    <ImageView
+        android:id="@+id/trashIcon"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="100dp"
+        android:background="@drawable/round_background_gray"
+        android:contentDescription="@string/trash_icon_desc"
+        android:elevation="20dp"
+        android:padding="16dp"
+        android:src="@drawable/ic_delete"
+        android:visibility="gone" />
+
+
+
+    <!-- FAB -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/addFolderButton"
         android:layout_width="wrap_content"
@@ -64,10 +69,10 @@
         android:layout_marginEnd="24dp"
         android:layout_marginBottom="100dp"
         android:src="@drawable/ic_plus"
-        android:contentDescription="Add Folder"
-        app:backgroundTint="@color/purple" />
+        android:contentDescription="@string/add_folder"
+        app:backgroundTint="@color/purple"/>
 
-    <!-- Bottom Navigation -->
+    <!-- Bottom Nav -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNavigationView"
         android:layout_width="match_parent"
@@ -77,6 +82,5 @@
         app:menu="@menu/bottom_navigation_menu"
         app:itemIconTint="@color/gray"
         app:itemTextColor="@color/gray"
-        app:labelVisibilityMode="labeled" />
-
+        app:labelVisibilityMode="labeled"/>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -22,6 +22,8 @@ public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.FolderView
     private final List<String> selectedFolders;
     private final OnFolderClickListener clickListener;
     private final OnFolderLongClickListener longClickListener;
+    private final OnStartDragListener dragListener;
+
 
     public interface OnFolderClickListener {
         void onFolderClick(String folderName);
@@ -38,13 +40,16 @@ public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.FolderView
 
     // Constructor complet
     public FolderAdapter(Context context, List<String> folders, List<String> selectedFolders,
-                         OnFolderClickListener clickListener, OnFolderLongClickListener longClickListener) {
+                         OnFolderClickListener clickListener, OnFolderLongClickListener longClickListener,
+                         OnStartDragListener dragListener) {
         this.context = context;
         this.folders = folders;
         this.selectedFolders = selectedFolders != null ? selectedFolders : new ArrayList<>();
         this.clickListener = clickListener;
         this.longClickListener = longClickListener;
+        this.dragListener = dragListener;
     }
+
 
     @NonNull
     @Override
@@ -68,10 +73,20 @@ public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.FolderView
         holder.itemView.setOnClickListener(v -> clickListener.onFolderClick(folderName));
 
         // Apăsare lungă pe folder
+//        holder.itemView.setOnLongClickListener(v -> {
+//            longClickListener.onFolderLongClick(folderName);
+//            return true;
+//        });
+
         holder.itemView.setOnLongClickListener(v -> {
-            longClickListener.onFolderLongClick(folderName);
+            if (dragListener != null) {
+                dragListener.requestDrag(holder);
+            }
             return true;
         });
+
+
+
     }
 
     @Override
@@ -90,4 +105,9 @@ public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.FolderView
             folderName = itemView.findViewById(R.id.folderName);
         }
     }
+
+    public interface OnStartDragListener {
+        void requestDrag(RecyclerView.ViewHolder viewHolder);
+    }
+
 }

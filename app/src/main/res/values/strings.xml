@@ -15,4 +15,12 @@
     <!-- pt logare google -->
     <string name="default_web_client_id">995314354054-r6lhbmkug033vn7vhfbnn3sbjucguh2u.apps.googleusercontent.com</string>
 
+    <!-- pt foldere -->
+    <string name="shared_folders_title">Shared Folders (0)</string>
+    <string name="trash_icon_desc">Trash Icon</string>
+    <string name="add_folder">Add Folder</string>
+
+
+
+
 </resources>

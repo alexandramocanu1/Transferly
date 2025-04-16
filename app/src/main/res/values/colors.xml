@@ -7,4 +7,5 @@
     <color name="gray">#6e6e71</color>
     <color name="purple_500">#6200EE</color>
     <color name="purple_700">#3700B3</color>
+    <color name="dark_gray">#222831</color>
 </resources>

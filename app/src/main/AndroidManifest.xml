@@ -42,6 +42,13 @@
             android:windowSoftInputMode="adjustResize"/>
 
 
+<!--        <activity android:name="com.canhub.cropper.CropImageActivity" />-->
+
+        <activity
+            android:name="com.canhub.cropper.CropImageActivity"
+            android:theme="@style/Base.Theme.AppCompat.Light.DarkActionBar" />
+
+
 
 
     </application>

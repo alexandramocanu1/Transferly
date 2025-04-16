@@ -70,4 +70,8 @@ dependencies {
 
     implementation ("com.android.volley:volley:1.2.1")
 
+    implementation ("com.github.CanHub:Android-Image-Cropper:4.3.3")
+
+
+
 }

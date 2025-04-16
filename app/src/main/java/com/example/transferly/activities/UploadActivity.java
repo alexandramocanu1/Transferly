@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
@@ -22,9 +23,11 @@ import android.view.View;
 import android.view.Window;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -35,6 +38,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 //import com.bumptech.glide.request.Request;
 //import com.bumptech.glide.request.Request;
+import com.canhub.cropper.CropImage;
+import com.canhub.cropper.CropImageContract;
 import com.example.transferly.R;
 import com.example.transferly.adapters.FullImageAdapter;
 import com.example.transferly.adapters.ImagesAdapter;
@@ -42,7 +47,10 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -68,6 +76,10 @@ import org.json.JSONObject;
 
 import java.io.FileInputStream;
 
+import com.canhub.cropper.CropImage;
+import com.canhub.cropper.CropImageView;
+import com.canhub.cropper.CropImageContractOptions;
+import com.canhub.cropper.CropImageOptions;
 
 
 
@@ -79,8 +91,12 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
     private final List<Uri> selectedImages = new ArrayList<>();
     private ImagesAdapter imagesAdapter;
     private RecyclerView recyclerViewImages;
-    private FloatingActionButton fabUpload;
     private TextView uploadIntroText;
+    private int currentPosition = -1;
+
+    private FloatingActionButton fabUpload, fabAdd, fabGenerateLink;
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -95,10 +111,13 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
         String email = prefs.getString("email", "");
 
 
+        fabGenerateLink = findViewById(R.id.fabGenerateLink);
         recyclerViewImages = findViewById(R.id.recyclerViewImages);
         fabUpload = findViewById(R.id.fabUpload);
+        fabAdd = findViewById(R.id.fabAdd);
         uploadIntroText = findViewById(R.id.uploadIntroText);
         ImageView reloadButton = findViewById(R.id.reloadButton);
+
 
         // init hide the reload button
         reloadButton.setVisibility(View.GONE);
@@ -151,11 +170,17 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
 
         fabUpload.setOnClickListener(v -> {
             if (selectedImages.isEmpty()) {
-                checkPermissionsAndOpenGallery();
+                checkPermissionsAndOpenGallery(); 
             } else {
-                generateLink();
+                generateLink(); // generate link daca sunt imagini
             }
         });
+
+
+        fabAdd.setOnClickListener(v -> checkPermissionsAndOpenGallery());
+
+        fabGenerateLink.setOnClickListener(v -> generateLink());
+
 
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
         bottomNavigationView.setSelectedItemId(R.id.nav_upload);
@@ -186,7 +211,7 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
             // culoare uniforma pentru status bar si navigation bar
             int darkColor = Color.parseColor("#111A20");
             window.setStatusBarColor(darkColor); // bara de sus (notificari)
-            window.setNavigationBarColor(darkColor); // bara de jos (navigație)
+            window.setNavigationBarColor(darkColor); // bara de jos (navigatie)
 
             // pt layout fullscreen + transparent padding handling
             window.getDecorView().setSystemUiVisibility(
@@ -199,29 +224,45 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
 
 
 
+
     private void checkPermissionsAndOpenGallery() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(
-                        this,
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
                         new String[]{Manifest.permission.READ_MEDIA_IMAGES},
-                        REQUEST_CODE_PERMISSIONS
-                );
+                        REQUEST_CODE_PERMISSIONS);
             } else {
                 openGallery();
             }
         } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(
-                        this,
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
                         new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
-                        REQUEST_CODE_PERMISSIONS
-                );
+                        REQUEST_CODE_PERMISSIONS);
             } else {
                 openGallery();
             }
         }
     }
+
+
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == REQUEST_CODE_PERMISSIONS) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                openGallery();
+            } else {
+                Toast.makeText(this, "Permission denied to access photos", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+
 
     private void openGallery() {
         Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
@@ -230,42 +271,69 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
         startActivityForResult(intent, REQUEST_CODE_SELECT_IMAGES);
     }
 
+
+    private final ActivityResultLauncher<CropImageContractOptions> cropImageLauncher =
+            registerForActivityResult(new CropImageContract(), result -> {
+                if (result.isSuccessful()) {
+                    Uri croppedUri = result.getUriContent();
+                    if (currentPosition >= 0 && currentPosition < selectedImages.size()) {
+
+                        // copiaza imaginea in cache sau storage
+                        selectedImages.set(currentPosition, croppedUri);
+                        imagesAdapter.notifyItemChanged(currentPosition);
+                        saveImages();
+                    }
+                } else {
+                    Exception error = result.getError();
+                    Toast.makeText(this, "Eroare crop: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
+
+
+
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
+        // Handle image selection from gallery
         if (requestCode == REQUEST_CODE_SELECT_IMAGES && resultCode == RESULT_OK && data != null) {
-            boolean imagesAdded = false;
-
             if (data.getClipData() != null) {
-                int count = data.getClipData().getItemCount();
-                for (int i = 0; i < count; i++) {
-                    Uri imageUri = data.getClipData().getItemAt(i).getUri();
-                    if (!selectedImages.contains(imageUri)) {
-                        selectedImages.add(imageUri);
-                        imagesAdded = true;
-                    }
+                ClipData clipData = data.getClipData();
+                for (int i = 0; i < clipData.getItemCount(); i++) {
+                    Uri imageUri = clipData.getItemAt(i).getUri();
+                    selectedImages.add(imageUri);
                 }
             } else if (data.getData() != null) {
                 Uri imageUri = data.getData();
-                if (!selectedImages.contains(imageUri)) {
-                    selectedImages.add(imageUri);
-                    imagesAdded = true;
-                }
+                selectedImages.add(imageUri);
             }
 
-            if (imagesAdded) {
-                // notify adapter to refresh the RecyclerView
-                imagesAdapter.notifyDataSetChanged();
-                recyclerViewImages.setVisibility(View.VISIBLE);
-                uploadIntroText.setVisibility(View.GONE);
-                fabUpload.setImageResource(R.drawable.ic_generate_link); // change FAB icon to generate link button
-                findViewById(R.id.reloadButton).setVisibility(View.VISIBLE); // show reload button
-            } else {
-                Toast.makeText(this, "No new images selected", Toast.LENGTH_SHORT).show();
+            imagesAdapter.notifyDataSetChanged();
+            recyclerViewImages.setVisibility(View.VISIBLE);
+            uploadIntroText.setVisibility(View.GONE);
+            fabUpload.setImageResource(R.drawable.ic_generate_link);
+            findViewById(R.id.reloadButton).setVisibility(View.VISIBLE);
+            fabGenerateLink.setVisibility(View.VISIBLE);
+            saveImages(); // persist
+        }
+
+        // Handle cropped image from FullImageActivity
+        if (requestCode == 123 && resultCode == RESULT_OK && data != null) {
+            String croppedUriStr = data.getStringExtra("croppedUri");
+            int position = data.getIntExtra("position", -1);
+
+            if (croppedUriStr != null && position >= 0 && position < selectedImages.size()) {
+                Uri croppedUri = Uri.parse(croppedUriStr);
+                selectedImages.set(position, croppedUri);
+                imagesAdapter.notifyItemChanged(position);
+                saveImages(); // update SharedPreferences
             }
         }
     }
+
+
+
 
 
     private void saveImages() {
@@ -312,13 +380,10 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
     }
 
 
-
     @Override
     public void onImageLongClick(int position) {
-        selectedImages.remove(position);
-        imagesAdapter.notifyItemRemoved(position);
-        imagesAdapter.notifyItemRangeChanged(position, selectedImages.size());
-        saveImages();
+        Uri uri = selectedImages.get(position); // NU o mai ștergem!
+        startCrop(uri, position); // trimitem imaginea la crop
 
         if (selectedImages.isEmpty()) {
             recyclerViewImages.setVisibility(View.GONE);
@@ -326,6 +391,8 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
             fabUpload.setImageResource(R.drawable.ic_plus);
         }
     }
+
+
 
     public void onListEmptied() {
         recyclerViewImages.setVisibility(View.GONE);
@@ -340,6 +407,28 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
         super.onPause();
         saveImages();
     }
+
+
+
+
+
+    private void startCrop(Uri imageUri, int position) {
+        currentPosition = position;
+
+        CropImageOptions options = new CropImageOptions();
+        options.guidelines = CropImageView.Guidelines.ON;
+        options.cropShape = CropImageView.CropShape.RECTANGLE;
+        options.fixAspectRatio = false;
+        options.autoZoomEnabled = true;
+        options.activityMenuIconColor = Color.WHITE;
+        options.outputCompressFormat = Bitmap.CompressFormat.JPEG;
+        options.outputCompressQuality = 90;
+
+        CropImageContractOptions cropOptions = new CropImageContractOptions(imageUri, options);
+        cropImageLauncher.launch(cropOptions);
+    }
+
+    
 
 
 
@@ -401,37 +490,37 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
 
         new Thread(() -> {
             try {
-                // creeaza un folder unic  ------- de facut valabil max 7 zile
                 String folderName = "album_" + UUID.randomUUID().toString().substring(0, 8);
+                String galleryLink = null;
 
                 for (Uri uri : selectedImages) {
                     String filePath = getFilePathFromURI(this, uri);
                     if (filePath == null || filePath.isEmpty()) {
-                        runOnUiThread(() -> Toast.makeText(this, "Eroare: nu s-a putut obține calea imaginii!", Toast.LENGTH_LONG).show());
+                        runOnUiThread(() -> Toast.makeText(this, "Eroare: nu s-a putut obtine calea imaginii!", Toast.LENGTH_LONG).show());
                         return;
                     }
 
-                    //  incarca fisierul pe server
-                    String uploadedFile = uploadToServer(filePath, folderName);
-                    if (uploadedFile == null) {
+                    // Aici primim linkul COMPLET (cu key și iv!) de la backend
+                    String uploadedLink = uploadToServer(filePath, folderName);
+
+                    if (uploadedLink == null) {
                         runOnUiThread(() -> Toast.makeText(this, "Eroare la incarcare!", Toast.LENGTH_LONG).show());
                         return;
                     }
+
+                    galleryLink = uploadedLink; // retine ultimul link primit (toate vor avea același folder, key, iv)
                 }
 
-                // generez link-ul spre gallery.html cu folderul respectiv
-                //String galleryUrl = "http://192.168.100.64/gallery.html?folder=" + folderName;
-                String galleryUrl = "http://transferly.go.ro:8080/gallery.html?folder=" + folderName;
-
-                runOnUiThread(() -> showPopupWithLink(galleryUrl));
+                if (galleryLink != null) {
+                    String finalGalleryLink = galleryLink;
+                    runOnUiThread(() -> showPopupWithLink(finalGalleryLink));
+                }
 
             } catch (Exception e) {
                 runOnUiThread(() -> Toast.makeText(this, "Eroare la generarea link-ului", Toast.LENGTH_SHORT).show());
             }
         }).start();
     }
-
-
 
 
 
@@ -519,58 +608,101 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
 
 
 
+    // cu tot cu loading screen si popup cu link
     private void showPopupWithLink(String link) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = getLayoutInflater().inflate(R.layout.popup_generate_link, null);
         builder.setView(view);
         AlertDialog dialog = builder.create();
 
-        EditText linkText = view.findViewById(R.id.linkText);
-        linkText.setText(link);
+        // Progress UI
+        ProgressBar progressBar = view.findViewById(R.id.progressBar);
+        TextView progressText = view.findViewById(R.id.progressText);
+        View loadingContainer = view.findViewById(R.id.loadingContainer);
+        View linkContentContainer = view.findViewById(R.id.linkContentContainer);
 
-        view.findViewById(R.id.copyButton).setOnClickListener(v -> {
+        // Link UI
+        EditText linkText = view.findViewById(R.id.linkText);
+        ImageView copyButton = view.findViewById(R.id.copyButton);
+        View closeButton = view.findViewById(R.id.closeButton);
+        View shareButton = view.findViewById(R.id.shareButton);
+
+        // Start progress animation
+        new Thread(() -> {
+            for (int i = 0; i <= 100; i++) {
+                int progress = i;
+                runOnUiThread(() -> {
+                    progressBar.setProgress(progress);
+                    progressText.setText("Generating link... " + progress + "%");
+                });
+
+                try {
+                    Thread.sleep(15); // viteza de incarcare (mai mic = mai rapid)
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            // Dupa ce progresul ajunge la 100%
+            runOnUiThread(() -> {
+                loadingContainer.setVisibility(View.GONE);
+                linkContentContainer.setVisibility(View.VISIBLE);
+                linkText.setText(link);
+            });
+
+        }).start();
+
+        // Copy
+        copyButton.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             ClipData clip = ClipData.newPlainText("Shared Link", link);
             clipboard.setPrimaryClip(clip);
             Toast.makeText(this, "Link copied", Toast.LENGTH_SHORT).show();
         });
 
-        view.findViewById(R.id.shareButton).setOnClickListener(v -> {
+        // Share
+        shareButton.setOnClickListener(v -> {
             Intent shareIntent = new Intent(Intent.ACTION_SEND);
             shareIntent.setType("text/plain");
             shareIntent.putExtra(Intent.EXTRA_TEXT, link);
             startActivity(Intent.createChooser(shareIntent, "Share via"));
         });
 
-        // inchide pop-up-ul
-        view.findViewById(R.id.closeButton).setOnClickListener(v -> dialog.dismiss());
+        // Close
+        closeButton.setOnClickListener(v -> dialog.dismiss());
 
         dialog.show();
     }
 
-    private String getFilePathFromURI(Context context, Uri contentUri) {
-        Cursor cursor = null;
+
+
+    private String getFilePathFromURI(Context context, Uri uri) {
         try {
-            String[] proj = { MediaStore.Images.Media.DATA };
-            cursor = context.getContentResolver().query(contentUri, proj, null, null, null);
-            if (cursor == null) {
-                return null;
+            File file = new File(context.getCacheDir(), "temp_image_" + System.currentTimeMillis() + ".jpg");
+            InputStream inputStream = context.getContentResolver().openInputStream(uri);
+            if (inputStream == null) return null;
+
+            OutputStream outputStream = new FileOutputStream(file);
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
             }
-            int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
-            cursor.moveToFirst();
-            return cursor.getString(column_index);
-        } catch (Exception e) {
-            Log.e("UPLOAD_DEBUG", "Error getting file path: " + e.getMessage());
+
+            inputStream.close();
+            outputStream.close();
+
+            return file.getAbsolutePath();
+
+        } catch (IOException e) {
+            Log.e("UPLOAD_DEBUG", "Failed to copy file from URI: " + e.getMessage());
             return null;
-        } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
         }
     }
 
+
     private String uploadToServer(String filePath, String folderName) {
-        //String serverUrl = "http://192.168.100.64:8080/api/upload"; 
+        //String serverUrl = "http://192.168.100.64:8080/api/upload";
         //String serverUrl = "http://transferly.sytes.net:8080/api/upload";
         //String serverUrl = "http://192.168.0.220:8080/api/upload";
         String serverUrl = "http://transferly.go.ro:8080/api/upload"; // endpoint u pt IP public

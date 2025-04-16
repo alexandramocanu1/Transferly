@@ -1,9 +1,48 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp">
+
+    <ImageView
+        android:id="@+id/deleteFolderBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:src="@drawable/ic_delete"
+        android:padding="8dp"
+        android:contentDescription="Delete Folder"
+        app:tint="@android:color/holo_red_light" />
+
+
+    <LinearLayout
+        android:id="@+id/shareInfoBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:background="@color/dark_gray"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/folderMembersInfo"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="@android:color/white"
+            android:text="Shared with: ..." />
+
+        <ImageView
+            android:id="@+id/deleteFolderBtnInsideBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_delete"
+            android:padding="8dp"
+            app:tint="@android:color/holo_red_light" />
+
+    </LinearLayout>
 
     <!-- Titlu pentru numele folderului -->
     <TextView
@@ -97,26 +136,6 @@
         android:layout_height="wrap_content"
         android:visibility="gone"
         android:layout_marginBottom="16dp" />
-
-    <!-- Cerculeț pentru like -->
-    <ImageView
-        android:id="@+id/likeCircle"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_gravity="start|top"
-        android:layout_margin="16dp"
-        android:src="@drawable/ic_circle"
-        android:visibility="gone" />
-
-    <!-- Cerculeț pentru ștergere -->
-    <ImageView
-        android:id="@+id/deleteCircle"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_gravity="end|top"
-        android:layout_margin="16dp"
-        android:src="@drawable/ic_circle"
-        android:visibility="gone" />
 
 
 </LinearLayout>

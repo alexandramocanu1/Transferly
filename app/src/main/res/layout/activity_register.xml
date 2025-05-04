@@ -1,62 +1,107 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp"
+    android:padding="24dp"
     android:gravity="center"
     android:background="@drawable/background_gradient">
 
-    <!-- Text pentru Register -->
+    <!-- Titlu -->
     <TextView
         android:id="@+id/registerTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Register"
-        android:textSize="24sp"
-        android:textColor="@android:color/black"
+        android:text="Create an account"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/holo_purple"
         android:layout_gravity="center_horizontal"
-        android:paddingBottom="24dp"/>
+        android:layout_marginBottom="32dp"/>
 
-    <!-- Câmp pentru email/username -->
-    <EditText
-        android:id="@+id/emailInput"
+    <!-- Email -->
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Email"
-        android:inputType="textEmailAddress"
-        android:padding="12dp"
-        android:background="@android:color/darker_gray"
-        android:layout_marginBottom="12dp"/>
+        app:startIconDrawable="@drawable/ic_person"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        android:layout_marginBottom="16dp">
 
-    <EditText
-        android:id="@+id/usernameInput"
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/emailInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textEmailAddress"/>
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Username -->
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Username"
-        android:background="@android:color/darker_gray"
-        android:inputType="textPersonName"
-        android:layout_marginBottom="12dp"/>
+        app:startIconDrawable="@drawable/ic_person"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        android:layout_marginBottom="16dp">
 
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/usernameInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPersonName"/>
+    </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Câmp pentru parolă -->
-    <EditText
-        android:id="@+id/passwordInput"
+    <!-- Password -->
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Password"
-        android:inputType="textPassword"
-        android:padding="12dp"
-        android:background="@android:color/darker_gray"
-        android:layout_marginBottom="16dp"/>
+        app:startIconDrawable="@drawable/ic_lock"
+        app:endIconMode="password_toggle"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        android:layout_marginBottom="24dp">
 
-    <!-- Buton de Register -->
-    <Button
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/passwordInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPassword"/>
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Register button -->
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/registerButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Register"
-        android:background="@android:color/holo_blue_light"
-        android:textColor="@android:color/white"
-        android:layout_marginBottom="8dp"/>
+        style="@style/Widget.MaterialComponents.Button"
+        app:cornerRadius="16dp"
+        android:layout_marginBottom="12dp"/>
 
+    <!-- Link către Login -->
+    <TextView
+        android:id="@+id/loginLink"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Already have an account? Login here"
+        android:textColor="@color/purple_500"
+        android:textSize="14sp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="24dp"
+        android:clickable="true"
+        android:focusable="true"/>
+
+    <!-- Register with Google button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/googleRegisterButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Register with Google"
+        android:icon="@drawable/ic_google"
+        app:iconPadding="12dp"
+        app:iconGravity="textStart"
+        app:cornerRadius="16dp"
+        android:backgroundTint="@android:color/holo_red_light"
+        android:textColor="@android:color/white"/>
 </LinearLayout>

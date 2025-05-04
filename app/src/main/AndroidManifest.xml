@@ -26,6 +26,8 @@
         <activity android:name=".activities.FriendsActivity" />
         <activity android:name=".activities.SharedFoldersActivity" />
         <activity android:name=".activities.FolderDetailActivity" />
+        <activity android:name=".activities.FolderImageActivity" />
+
 
 
 

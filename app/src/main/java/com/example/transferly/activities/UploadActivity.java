@@ -100,6 +100,14 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
     private long backPressedTime = 0;
     private Toast backToast;
 
+
+    private AlertDialog uploadProgressDialog;
+    private ProgressBar uploadProgressBar;
+    private TextView uploadProgressText;
+    private View loadingContainer, linkContentContainer;
+    private EditText linkText;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -398,7 +406,7 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
 
     @Override
     public void onImageLongClick(int position) {
-        Uri uri = selectedImages.get(position); // NU o mai ștergem!
+        Uri uri = selectedImages.get(position); // NU o mai stergem!
         startCrop(uri, position); // trimitem imaginea la crop
 
         if (selectedImages.isEmpty()) {
@@ -498,38 +506,130 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
 
 
 
+//    private void generateLink() {
+//        if (selectedImages.isEmpty()) {
+//            runOnUiThread(() -> Toast.makeText(this, "Nu s-au selectat imagini", Toast.LENGTH_SHORT).show());
+//            return;
+//        }
+//
+//        new Thread(() -> {
+//            try {
+//                String folderName = "album_" + UUID.randomUUID().toString().substring(0, 8);
+//                String galleryLink = null;
+//
+//                for (Uri uri : selectedImages) {
+//                    String filePath = getFilePathFromURI(this, uri);
+//                    if (filePath == null || filePath.isEmpty()) {
+//                        runOnUiThread(() -> Toast.makeText(this, "Eroare: nu s-a putut obtine calea imaginii!", Toast.LENGTH_LONG).show());
+//                        return;
+//                    }
+//
+//                    // Aici primim linkul COMPLET (cu key si iv!) de la backend
+//                    String uploadedLink = uploadToServer(filePath, folderName);
+//
+//                    if (uploadedLink == null) {
+//                        runOnUiThread(() -> Toast.makeText(this, "Eroare la incarcare!", Toast.LENGTH_LONG).show());
+//                        return;
+//                    }
+//
+//                    galleryLink = uploadedLink; // retine ultimul link primit (toate vor avea acelasi folder, key, iv)
+//                }
+//
+//                if (galleryLink != null) {
+//                    String finalGalleryLink = galleryLink;
+//                    runOnUiThread(() -> showPopupWithLink(finalGalleryLink));
+//                }
+//
+//            } catch (Exception e) {
+//                runOnUiThread(() -> Toast.makeText(this, "Eroare la generarea link-ului", Toast.LENGTH_SHORT).show());
+//            }
+//        }).start();
+//    }
+
+
     private void generateLink() {
         if (selectedImages.isEmpty()) {
             runOnUiThread(() -> Toast.makeText(this, "Nu s-au selectat imagini", Toast.LENGTH_SHORT).show());
             return;
         }
 
+        runOnUiThread(() -> {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Alege un nume pentru galerie");
+
+            final EditText input = new EditText(this);
+            input.setHint("ex: Excursie Paris 2024");
+            builder.setView(input);
+
+            builder.setPositiveButton("OK", (dialog, which) -> {
+                String customName = input.getText().toString().trim();
+                if (customName.isEmpty()) {
+                    Toast.makeText(this, "Trebuie sa alegi un nume!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                // Dupa ce avem numele custom, trecem la upload
+                startUploading(customName);
+            });
+
+            builder.setNegativeButton("Anuleaza", (dialog, which) -> dialog.dismiss());
+            builder.show();
+        });
+    }
+
+
+
+    private void startUploading(String customName) {
         new Thread(() -> {
             try {
                 String folderName = "album_" + UUID.randomUUID().toString().substring(0, 8);
                 String galleryLink = null;
 
+                startUploadPopup(); // 🔥 Afiseaza popup-ul inainte de upload
+
+                int total = selectedImages.size();
+                int uploaded = 0;
+
                 for (Uri uri : selectedImages) {
                     String filePath = getFilePathFromURI(this, uri);
                     if (filePath == null || filePath.isEmpty()) {
-                        runOnUiThread(() -> Toast.makeText(this, "Eroare: nu s-a putut obtine calea imaginii!", Toast.LENGTH_LONG).show());
-                        return;
+                        Log.e("UPLOAD_DEBUG", "Calea imaginii este goala.");
+                        continue; // sari peste
                     }
 
-                    // Aici primim linkul COMPLET (cu key și iv!) de la backend
                     String uploadedLink = uploadToServer(filePath, folderName);
 
                     if (uploadedLink == null) {
-                        runOnUiThread(() -> Toast.makeText(this, "Eroare la incarcare!", Toast.LENGTH_LONG).show());
-                        return;
+                        Log.e("UPLOAD_DEBUG", "Failed to upload: " + filePath);
+                        continue; // sari peste imaginea esuata
                     }
 
-                    galleryLink = uploadedLink; // retine ultimul link primit (toate vor avea același folder, key, iv)
+                    galleryLink = uploadedLink;
+
+                    uploaded++;
+                    int progress = (uploaded * 100) / total;
+                    int finalProgress = progress;
+                    runOnUiThread(() -> {
+                        uploadProgressBar.setProgress(finalProgress);
+                        uploadProgressText.setText("Uploading images... " + finalProgress + "%");
+                    });
                 }
 
+
                 if (galleryLink != null) {
-                    String finalGalleryLink = galleryLink;
-                    runOnUiThread(() -> showPopupWithLink(finalGalleryLink));
+                    SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+                    String username = prefs.getString("username", "guest");
+
+                    String finalGalleryLink = galleryLink
+                            + "&folder=" + Uri.encode(folderName)
+                            + "&folderName=" + Uri.encode(customName)
+                            + "&creator=" + Uri.encode(username);
+
+                    runOnUiThread(() -> {
+                        loadingContainer.setVisibility(View.GONE);
+                        linkContentContainer.setVisibility(View.VISIBLE);
+                        linkText.setText(finalGalleryLink);
+                    });
                 }
 
             } catch (Exception e) {
@@ -537,6 +637,55 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
             }
         }).start();
     }
+
+
+
+
+    private void startUploadPopup() {
+        runOnUiThread(() -> {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            View view = getLayoutInflater().inflate(R.layout.popup_generate_link, null);
+            builder.setView(view);
+            uploadProgressDialog = builder.create();
+
+            uploadProgressBar = view.findViewById(R.id.progressBar);
+            uploadProgressText = view.findViewById(R.id.progressText);
+            loadingContainer = view.findViewById(R.id.loadingContainer);
+            linkContentContainer = view.findViewById(R.id.linkContentContainer);
+            linkText = view.findViewById(R.id.linkText);
+            ImageView copyButton = view.findViewById(R.id.copyButton);
+            View closeButton = view.findViewById(R.id.closeButton);
+            View shareButton = view.findViewById(R.id.shareButton);
+
+            uploadProgressBar.setProgress(0);
+            uploadProgressText.setText("Uploading images... 0%");
+
+            // initial link-ul si butoanele sunt ascunse
+            linkContentContainer.setVisibility(View.GONE);
+
+            // Copiaza link
+            copyButton.setOnClickListener(v -> {
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                ClipData clip = ClipData.newPlainText("Shared Link", linkText.getText().toString());
+                clipboard.setPrimaryClip(clip);
+                Toast.makeText(this, "Link copied", Toast.LENGTH_SHORT).show();
+            });
+
+            // inchide popup
+            closeButton.setOnClickListener(v -> uploadProgressDialog.dismiss());
+
+            // Share link
+            shareButton.setOnClickListener(v -> {
+                Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                shareIntent.setType("text/plain");
+                shareIntent.putExtra(Intent.EXTRA_TEXT, linkText.getText().toString());
+                startActivity(Intent.createChooser(shareIntent, "Share via"));
+            });
+
+            uploadProgressDialog.show();
+        });
+    }
+
 
 
 
@@ -717,53 +866,101 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
     }
 
 
+//    private String uploadToServer(String filePath, String folderName) {
+//        //String serverUrl = "http://192.168.100.64:8080/api/upload";
+//        //String serverUrl = "http://transferly.sytes.net:8080/api/upload";
+//        //String serverUrl = "http://192.168.0.220:8080/api/upload";
+//        String serverUrl = "http://transferly.go.ro:8080/api/upload"; // endpoint u pt IP public
+//
+//
+//
+//
+//        OkHttpClient client = new OkHttpClient();
+//        File file = new File(filePath);
+//
+//        if (!file.exists()) {
+//            Log.e("UPLOAD_DEBUG", " ERROR: File does not exist: " + filePath);
+//            return null;
+//        }
+//
+//        try {
+//            RequestBody requestBody = new MultipartBody.Builder()
+//                    .setType(MultipartBody.FORM)
+//                    .addFormDataPart("file", file.getName(),
+//                            RequestBody.create(MediaType.parse("image/*"), file))
+//                    .addFormDataPart("folder", folderName) // trimite folderul la server
+//                    .build();
+//
+//            Request request = new Request.Builder()
+//                    .url(serverUrl)
+//                    .post(requestBody)
+//                    .build();
+//
+//            Response response = client.newCall(request).execute();
+//
+//            if (!response.isSuccessful()) {
+//                Log.e("UPLOAD_DEBUG", " ERROR: Server response: " + response.code() + " -> " + response.body().string());
+//                return null;
+//            }
+//
+//            //  Returneaza link-ul HTTP al imaginii
+//            String httpFileLink = response.body().string().trim();
+//            Log.d("UPLOAD_DEBUG", " File uploaded successfully: " + httpFileLink);
+//            return httpFileLink;
+//
+//        } catch (Exception e) {
+//            Log.e("UPLOAD_DEBUG", " ERROR: Exception during upload: " + e.getMessage());
+//            return null;
+//        }
+//    }
+
+
+
     private String uploadToServer(String filePath, String folderName) {
-        //String serverUrl = "http://192.168.100.64:8080/api/upload";
-        //String serverUrl = "http://transferly.sytes.net:8080/api/upload";
-        //String serverUrl = "http://192.168.0.220:8080/api/upload";
-        String serverUrl = "http://transferly.go.ro:8080/api/upload"; // endpoint u pt IP public
+        OkHttpClient client = new OkHttpClient.Builder()
+                .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .build();
 
-
-
-
-        OkHttpClient client = new OkHttpClient();
         File file = new File(filePath);
-
         if (!file.exists()) {
             Log.e("UPLOAD_DEBUG", " ERROR: File does not exist: " + filePath);
             return null;
         }
 
-        try {
-            RequestBody requestBody = new MultipartBody.Builder()
-                    .setType(MultipartBody.FORM)
-                    .addFormDataPart("file", file.getName(),
-                            RequestBody.create(MediaType.parse("image/*"), file))
-                    .addFormDataPart("folder", folderName) // trimite folderul la server
-                    .build();
+        int maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                RequestBody requestBody = new MultipartBody.Builder()
+                        .setType(MultipartBody.FORM)
+                        .addFormDataPart("file", file.getName(),
+                                RequestBody.create(MediaType.parse("image/*"), file))
+                        .addFormDataPart("folder", folderName)
+                        .build();
 
-            Request request = new Request.Builder()
-                    .url(serverUrl)
-                    .post(requestBody)
-                    .build();
+                Request request = new Request.Builder()
+                        .url("http://transferly.go.ro:8080/api/upload")
+                        .post(requestBody)
+                        .build();
 
-            Response response = client.newCall(request).execute();
+                Response response = client.newCall(request).execute();
 
-            if (!response.isSuccessful()) {
-                Log.e("UPLOAD_DEBUG", " ERROR: Server response: " + response.code() + " -> " + response.body().string());
-                return null;
+                if (response.isSuccessful()) {
+                    String httpFileLink = response.body().string().trim();
+                    Log.d("UPLOAD_DEBUG", "Upload successful: " + httpFileLink);
+                    return httpFileLink;
+                } else {
+                    Log.e("UPLOAD_DEBUG", "Server response error (attempt " + attempt + "): " + response.code());
+                }
+            } catch (Exception e) {
+                Log.e("UPLOAD_DEBUG", "Upload failed (attempt " + attempt + "): " + e.getMessage());
             }
-
-            //  Returneaza link-ul HTTP al imaginii
-            String httpFileLink = response.body().string().trim();
-            Log.d("UPLOAD_DEBUG", " File uploaded successfully: " + httpFileLink);
-            return httpFileLink;
-
-        } catch (Exception e) {
-            Log.e("UPLOAD_DEBUG", " ERROR: Exception during upload: " + e.getMessage());
-            return null;
         }
+
+        return null; // dupa 3 incercari esuate
     }
+
 
 
 

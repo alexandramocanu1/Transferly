@@ -1,5 +1,7 @@
 package com.example.transferly.activities;
 
+import static android.content.ContentValues.TAG;
+
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
@@ -58,6 +60,9 @@ public class FolderDetailActivity extends AppCompatActivity {
     private List<String> likedImages, otherImages, duplicateImages, subfolders;
     private final List<String> selectedSubfolders = new ArrayList<>();
 
+    private ActivityResultLauncher<Intent> fullScreenLauncher;
+
+
     private final ActivityResultLauncher<Intent> galleryLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
@@ -85,6 +90,7 @@ public class FolderDetailActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_folder_detail);
+
 
         String folderId = getIntent().getStringExtra("FOLDER_ID");
 
@@ -118,8 +124,14 @@ public class FolderDetailActivity extends AppCompatActivity {
 
 
         if (folderId != null) {
-            fetchFilesForSharedFolder(folderId);
+            SharedPreferences sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+            if (!sharedPreferences.contains(KEY_IMAGES_PREFIX + folderId)) {
+                fetchFilesForSharedFolder(folderId);
+            } else {
+                Log.d(TAG, "Skipping fetchFilesForSharedFolder, images already cached");
+            }
         }
+
 
 
 
@@ -157,7 +169,68 @@ public class FolderDetailActivity extends AppCompatActivity {
                     .show();
         });
 
+
+
+        fullScreenLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    Log.d(TAG, "Got result from FolderImageActivity: " + result.getResultCode());
+
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        String croppedUriStr = result.getData().getStringExtra("croppedUri");
+                        int position = result.getData().getIntExtra("position", -1);
+
+                        Log.d(TAG, "Received cropped URI: " + croppedUriStr + ", Position: " + position);
+
+                        if (croppedUriStr != null && position >= 0) {
+                            try {
+                                Uri croppedUri = Uri.parse(croppedUriStr);
+
+                                if (position < otherImages.size()) {
+                                    // Update URI in the list
+                                    otherImages.set(position, croppedUriStr);
+
+                                    // Save the changes immediately
+//                                    String folderName = getIntent().getStringExtra("FOLDER_NAME");
+                                    saveFolderData(folderName);
+
+                                    // Force refresh the adapter
+                                    if (othersAdapter != null) {
+                                        othersAdapter.updateImage(position, croppedUri);
+                                        othersAdapter.notifyItemChanged(position);
+                                        Log.d(TAG, "Updated adapter with new image at position " + position);
+                                    } else {
+                                        Log.e(TAG, "othersAdapter is null!");
+                                        // If adapter is null, refresh everything
+                                        updateUI();
+                                    }
+
+                                    Toast.makeText(FolderDetailActivity.this,
+                                            "Image cropped and saved successfully",
+                                            Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Log.e(TAG, "Position out of bounds: " + position + ", size: " + otherImages.size());
+                                    Toast.makeText(FolderDetailActivity.this,
+                                            "Error: Image position out of bounds",
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error processing cropped image: " + e.getMessage(), e);
+                                Toast.makeText(FolderDetailActivity.this,
+                                        "Error saving cropped image: " + e.getMessage(),
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            Log.e(TAG, "Invalid data: cropped URI=" + croppedUriStr + ", position=" + position);
+                        }
+                    } else {
+                        Log.d(TAG, "Result not OK or data is null");
+                    }
+                }
+        );
     }
+
+
 
     private void updateUI() {
         boolean hasContent = !likedImages.isEmpty() || !otherImages.isEmpty() || !duplicateImages.isEmpty() || !subfolders.isEmpty();
@@ -172,8 +245,6 @@ public class FolderDetailActivity extends AppCompatActivity {
         setupRecyclerView(othersRecyclerView, otherImages);
         setupRecyclerView(duplicateRecyclerView, duplicateImages);
         setupSubfoldersRecyclerView();
-
-        saveFolderData(getIntent().getStringExtra("FOLDER_NAME"));
     }
 
 
@@ -221,26 +292,62 @@ public class FolderDetailActivity extends AppCompatActivity {
                 .show();
     }
 
+    private FolderImageAdapter othersAdapter;
+
+
     private void setupRecyclerView(RecyclerView recyclerView, List<String> images) {
         recyclerView.setLayoutManager(new GridLayoutManager(this, 3));
-        FolderImageAdapter adapter = new FolderImageAdapter(this, images, new FolderImageAdapter.OnImageActionListener() {
-            @Override
-            public void onImageLiked(int position) {
-                if (!likedImages.contains(images.get(position))) {
-                    likedImages.add(images.get(position));
-                } else {
-                    likedImages.remove(images.get(position));
-                }
-                updateUI();
-            }
 
-            @Override
-            public void onImageDeleted(int position) {
-                images.remove(position);
-                updateUI();
-            }
-        });
-        recyclerView.setAdapter(adapter);
+        List<Uri> imageUris = new ArrayList<>();
+        for (String path : images) {
+            imageUris.add(Uri.parse(path));
+            Log.d("FolderDetail", "Adding image to adapter: " + path);
+        }
+
+        // Dacă este recyclerview-ul pentru 'others', salvează adaptorul în variabila globală
+        if (recyclerView.getId() == R.id.othersRecyclerView) {
+            othersAdapter = new FolderImageAdapter(this, imageUris, new FolderImageAdapter.OnImageActionListener() {
+                @Override
+                public void onImageLiked(int position) {
+                    if (!likedImages.contains(images.get(position))) {
+                        likedImages.add(images.get(position));
+                    } else {
+                        likedImages.remove(images.get(position));
+                    }
+                    updateUI();
+                }
+
+                @Override
+                public void onImageDeleted(int position) {
+                    images.remove(position);
+                    updateUI();
+                }
+            }, fullScreenLauncher);
+
+            recyclerView.setAdapter(othersAdapter);
+            Log.d("FolderDetail", "Others adapter set with " + imageUris.size() + " images");
+        } else {
+            // Pentru celelalte recyclerview-uri
+            FolderImageAdapter adapter = new FolderImageAdapter(this, imageUris, new FolderImageAdapter.OnImageActionListener() {
+                @Override
+                public void onImageLiked(int position) {
+                    if (!likedImages.contains(images.get(position))) {
+                        likedImages.add(images.get(position));
+                    } else {
+                        likedImages.remove(images.get(position));
+                    }
+                    updateUI();
+                }
+
+                @Override
+                public void onImageDeleted(int position) {
+                    images.remove(position);
+                    updateUI();
+                }
+            }, fullScreenLauncher);
+
+            recyclerView.setAdapter(adapter);
+        }
     }
 
     private void showOptions() {
@@ -314,17 +421,28 @@ public class FolderDetailActivity extends AppCompatActivity {
 
     private void saveFolderData(String folderName) {
         String folderId = getIntent().getStringExtra("FOLDER_ID");
-        if (folderId == null) return;
+        if (folderId == null) {
+            Log.e(TAG, "FolderId is null, cannot save data");
+            return;
+        }
+
+        Log.d(TAG, "Saving data for folder: " + folderName + " (ID: " + folderId + ")");
+        Log.d(TAG, "Images count: " + otherImages.size());
 
         SharedPreferences sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
 
         Gson gson = new Gson();
-        editor.putString(KEY_IMAGES_PREFIX + folderId, gson.toJson(otherImages));
+        String imagesJson = gson.toJson(otherImages);
+        editor.putString(KEY_IMAGES_PREFIX + folderId, imagesJson);
         editor.putString(KEY_SUBFOLDERS_PREFIX + folderId, gson.toJson(subfolders));
-        editor.apply();
-    }
 
+        boolean success = editor.commit(); // Use commit() instead of apply() for immediate feedback
+        Log.d(TAG, "Save result: " + (success ? "successful" : "failed"));
+
+        // Force UI update after save
+        runOnUiThread(this::updateUI);
+    }
 
 
     private void loadFolderData(String folderName) {
@@ -472,7 +590,36 @@ public class FolderDetailActivity extends AppCompatActivity {
     }
 
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
 
+        Log.d(TAG, "onActivityResult - requestCode: " + requestCode + ", resultCode: " + resultCode);
 
+        if (requestCode == 123 && resultCode == RESULT_OK && data != null) {
+            String croppedUriStr = data.getStringExtra("croppedUri");
+            int position = data.getIntExtra("position", -1);
 
+            Log.d(TAG, "onActivityResult - Cropped URI: " + croppedUriStr + ", Position: " + position);
+
+            if (croppedUriStr != null && position >= 0 && position < otherImages.size()) {
+                otherImages.set(position, croppedUriStr);
+
+                // Save the data
+                saveFolderData(getIntent().getStringExtra("FOLDER_NAME"));
+
+                // Update adapter directly
+                if (othersAdapter != null) {
+                    othersAdapter.updateImage(position, Uri.parse(croppedUriStr));
+                    othersAdapter.notifyItemChanged(position);
+                    Log.d(TAG, "Updated adapter in onActivityResult");
+                }
+
+                // Also update the UI
+                updateUI();
+
+                Toast.makeText(this, "Image cropped and saved successfully (classic)", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
 }

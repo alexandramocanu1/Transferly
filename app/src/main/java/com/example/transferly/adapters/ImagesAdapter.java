@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.transferly.R;
+import com.example.transferly.activities.FolderImageActivity;
 import com.example.transferly.activities.FullImageActivity;
 import com.example.transferly.activities.UploadActivity;
 

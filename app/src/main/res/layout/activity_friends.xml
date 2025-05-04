@@ -46,7 +46,14 @@
             android:textColor="@android:color/white"
             android:layout_marginBottom="12dp" />
 
-        <!-- Lista de prieteni -->
+        <!-- pt cereri de prietenie -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/friendRequestsRecycler"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" />
+
+        <!--  Lista de prieteni cu scroll -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="0dp"
@@ -58,7 +65,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
-                <!-- alt prieten etc. -->
+                <!-- Aici vor apărea cardurile prietenilor -->
             </LinearLayout>
         </ScrollView>
     </LinearLayout>
@@ -86,5 +93,4 @@
         app:itemIconTint="@color/gray"
         app:itemTextColor="@color/gray"
         app:labelVisibilityMode="labeled" />
-
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -549,10 +549,18 @@ public class SharedFoldersActivity extends AppCompatActivity {
         RecyclerView friendsRecyclerView = dialogView.findViewById(R.id.friendsRecyclerView);
         friendsRecyclerView.setLayoutManager(new GridLayoutManager(this, 1));
 
-
         getMyFriends(allFriends -> {
             List<String> selectedFriends = new ArrayList<>();
-            FriendSelectAdapter adapter = new FriendSelectAdapter(allFriends, selectedFriends);
+
+            // Adapter custom care gestionează selecția
+            FriendSelectAdapter adapter = new FriendSelectAdapter(allFriends, friendUsername -> {
+                if (selectedFriends.contains(friendUsername)) {
+                    selectedFriends.remove(friendUsername);
+                } else {
+                    selectedFriends.add(friendUsername);
+                }
+            });
+
             friendsRecyclerView.setAdapter(adapter);
 
             builder.setTitle("Create Shared Folder")
@@ -562,6 +570,8 @@ public class SharedFoldersActivity extends AppCompatActivity {
                             Toast.makeText(this, "Folder name cannot be empty", Toast.LENGTH_SHORT).show();
                             return;
                         }
+
+                        Log.d("SHARED_FOLDER_CREATE", "Selected friends: " + selectedFriends);
                         createSharedFolderOnServer(folderName, selectedFriends);
                     })
                     .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
@@ -569,6 +579,9 @@ public class SharedFoldersActivity extends AppCompatActivity {
             builder.show();
         });
     }
+
+
+
 
 
 

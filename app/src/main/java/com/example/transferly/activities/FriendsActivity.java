@@ -23,12 +23,22 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.example.transferly.R;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+
+
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import com.example.transferly.adapters.FriendRequestAdapter;
+
+import java.util.ArrayList;
+import java.util.List;
+
 
 public class FriendsActivity extends AppCompatActivity {
 
@@ -43,10 +53,23 @@ public class FriendsActivity extends AppCompatActivity {
     private long backPressedTime = 0;
     private Toast backToast;
 
+    private RecyclerView friendRequestsRecycler;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_friends);
+
+        requestQueue = Volley.newRequestQueue(this);
+
+
+        friendRequestsRecycler = findViewById(R.id.friendRequestsRecycler);
+        friendRequestsRecycler.setLayoutManager(new LinearLayoutManager(this));
+
+
+        loadFriendRequestsRecycler();
+
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -65,7 +88,6 @@ public class FriendsActivity extends AppCompatActivity {
         SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
         loggedInUsername = prefs.getString("username", "guest");
 
-        requestQueue = Volley.newRequestQueue(this);
 
         // init componentelor UI
         searchUsername = findViewById(R.id.searchUsername);
@@ -113,11 +135,12 @@ public class FriendsActivity extends AppCompatActivity {
         searchButton.setOnClickListener(v -> {
             String username = searchUsername.getText().toString();
             if (!username.isEmpty()) {
-                searchUser(username);
+                searchUser(username); // trimite mai departe verificarea
             } else {
                 Toast.makeText(this, "Please enter a username", Toast.LENGTH_SHORT).show();
             }
         });
+
 
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -132,15 +155,39 @@ public class FriendsActivity extends AppCompatActivity {
             );
         }
 
-        loadPendingRequests();
-        loadFriendRequests();
+//        loadPendingRequests();
+//        loadFriendRequests();
+//        loadFriendRequestsRecycler();
+
         getFriendsList();
+        loadPendingFriendRequests();
+
 
 
     }
 
+
+    private void loadFriendRequestsRecycler() {
+        String url = "http://transferly.go.ro:8080/api/users/" + loggedInUsername + "/requests";
+
+        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
+                response -> {
+                    List<String> senderUsernames = new ArrayList<>();
+                    for (int i = 0; i < response.length(); i++) {
+                        senderUsernames.add(response.optString(i));
+                    }
+
+                    FriendRequestAdapter adapter = new FriendRequestAdapter(senderUsernames, this, loggedInUsername);
+                    friendRequestsRecycler.setAdapter(adapter);
+                },
+                error -> Toast.makeText(this, "❌ Failed to load friend requests", Toast.LENGTH_SHORT).show()
+        );
+
+        requestQueue.add(request);
+    }
+
+
     private void searchUser(String username) {
-        // Ver dc utilizatorul exista deja in lista de prieteni
         String url = "http://transferly.go.ro:8080/api/users/search?username=" + username;
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
@@ -148,11 +195,11 @@ public class FriendsActivity extends AppCompatActivity {
                     try {
                         String foundUser = response.getString("username");
 
-                        // Vf dc utilizatorul gasit nu este deja un prieten
                         if (!foundUser.equalsIgnoreCase(loggedInUsername)) {
-                            if (!isUserAlreadyInFriendsList(foundUser)) {
-                                addFriendRequestCard(foundUser, false); // Ad doar dc nu este prieten
-                            }
+                            isUserAlreadyInFriendsList(foundUser, () -> {
+                                // 👉 Afișează cardul cu butonul "Send Request", dar nu trimite direct
+                                addFriendRequestCard(foundUser, false);
+                            });
                         } else {
                             Toast.makeText(this, "Nu poți adăuga propriul cont!", Toast.LENGTH_SHORT).show();
                         }
@@ -168,28 +215,139 @@ public class FriendsActivity extends AppCompatActivity {
     }
 
 
-    private boolean isUserAlreadyInFriendsList(String username) {
-        // URL-ul pta obt lista de prieteni a utilizatorului
-        String url = "http://transferly.go.ro:8080/api/users/" + loggedInUsername + "/friends";
+    private void loadPendingFriendRequests() {
+        String url = "http://transferly.go.ro:8080/api/users/" + loggedInUsername + "/requests";
 
-        final boolean[] isFriend = {false};  // Var pt a stoca rezultatul vf
-
-        // solicitare GET pt a obt lista de prieteni
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
                 response -> {
-                    try {
-                        // parcurg lista cu prieteni
-                        for (int i = 0; i < response.length(); i++) {
-                            String friendUsername = response.getString(i);
+                    for (int i = 0; i < response.length(); i++) {
+                        try {
+                            String senderUsername = response.getString(i);
+                            addIncomingRequestCard(senderUsername);
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                },
+                error -> Toast.makeText(this, "Failed to load friend requests", Toast.LENGTH_SHORT).show()
+        );
 
-                            // vf dc utilizatorul cautat e deja in lista de prieteni
-                            if (friendUsername.equals(username)) {
-                                isFriend[0] = true;  // adv daca l gaseste
+        requestQueue.add(request);
+    }
+
+
+//    private boolean isUserAlreadyInFriendsList(String username) {
+//        // URL-ul pta obt lista de prieteni a utilizatorului
+//        String url = "http://transferly.go.ro:8080/api/users/" + loggedInUsername + "/friends";
+//
+//        final boolean[] isFriend = {false};  // Var pt a stoca rezultatul vf
+//
+//        // solicitare GET pt a obt lista de prieteni
+//        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
+//                response -> {
+//                    try {
+//                        // parcurg lista cu prieteni
+//                        for (int i = 0; i < response.length(); i++) {
+//                            String friendUsername = response.getString(i);
+//
+//                            // vf dc utilizatorul cautat e deja in lista de prieteni
+//                            if (friendUsername.equals(username)) {
+//                                isFriend[0] = true;  // adv daca l gaseste
+//                                break;
+//                            }
+//                        }
+//                    } catch (JSONException e) {
+//                        e.printStackTrace();
+//                    }
+//                },
+//                error -> {
+//                    Toast.makeText(this, "Error loading friends", Toast.LENGTH_SHORT).show();
+//                }
+//        );
+//
+//        requestQueue.add(request);
+//
+//        return isFriend[0];  // Retr rez vf
+//    }
+
+    private void addIncomingRequestCard(String senderUsername) {
+        LinearLayout container = findViewById(R.id.friendsListContainer);
+
+        LinearLayout card = new LinearLayout(this);
+        card.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setBackgroundResource(R.drawable.friend_card_bg);
+        card.setPadding(24, 24, 24, 24);
+
+        TextView nameText = new TextView(this);
+        nameText.setLayoutParams(new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        nameText.setText(senderUsername);
+        nameText.setTextSize(16);
+        nameText.setTextColor(getResources().getColor(android.R.color.white));
+        nameText.setPadding(12, 0, 0, 0);
+
+        Button acceptBtn = new Button(this);
+        acceptBtn.setText("Accept");
+        acceptBtn.setBackgroundTintList(getResources().getColorStateList(R.color.green));
+        acceptBtn.setTextColor(getResources().getColor(android.R.color.white));
+        acceptBtn.setOnClickListener(v -> {
+            acceptFriend(senderUsername);
+            container.removeView(card);
+            getFriendsList(); // reîncarcă prietenii actuali
+        });
+
+        Button declineBtn = new Button(this);
+        declineBtn.setText("Decline");
+        declineBtn.setBackgroundTintList(getResources().getColorStateList(android.R.color.holo_red_dark));
+        declineBtn.setTextColor(getResources().getColor(android.R.color.white));
+        declineBtn.setOnClickListener(v -> {
+            declineFriend(senderUsername);
+            container.removeView(card);
+        });
+
+        card.addView(nameText);
+        card.addView(acceptBtn);
+        card.addView(declineBtn);
+        container.addView(card);
+    }
+
+
+
+    private void declineFriend(String senderUsername) {
+        String url = "http://transferly.go.ro:8080/api/users/declineRequest?receiver=" + loggedInUsername + "&sender=" + senderUsername;
+
+        StringRequest request = new StringRequest(Request.Method.DELETE, url,
+                response -> Toast.makeText(this, "Declined " + senderUsername, Toast.LENGTH_SHORT).show(),
+                error -> Toast.makeText(this, "Failed to decline", Toast.LENGTH_SHORT).show()
+        );
+
+        requestQueue.add(request);
+    }
+
+
+
+    private void isUserAlreadyInFriendsList(String username, Runnable onNotFriend) {
+        String url = "http://transferly.go.ro:8080/api/users/" + loggedInUsername + "/friends";
+
+        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
+                response -> {
+                    boolean isFriend = false;
+                    for (int i = 0; i < response.length(); i++) {
+                        try {
+                            if (username.equals(response.getString(i))) {
+                                isFriend = true;
                                 break;
                             }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
                         }
-                    } catch (JSONException e) {
-                        e.printStackTrace();
+                    }
+                    if (!isFriend) {
+                        onNotFriend.run();
                     }
                 },
                 error -> {
@@ -198,9 +356,8 @@ public class FriendsActivity extends AppCompatActivity {
         );
 
         requestQueue.add(request);
-
-        return isFriend[0];  // Retr rez vf
     }
+
 
 
 
@@ -308,6 +465,17 @@ public class FriendsActivity extends AppCompatActivity {
 
 
     private void showDeleteFriendButton(LinearLayout container, LinearLayout card, String friendUsername) {
+        // Evită adăugarea repetată a butonului
+        for (int i = 0; i < card.getChildCount(); i++) {
+            View child = card.getChildAt(i);
+            if (child instanceof Button) {
+                Button btn = (Button) child;
+                if ("Delete Friend".equals(btn.getText().toString())) {
+                    return;
+                }
+            }
+        }
+
         Button deleteButton = new Button(this);
         deleteButton.setText("Delete Friend");
         deleteButton.setBackgroundTintList(getResources().getColorStateList(android.R.color.holo_red_dark));
@@ -327,20 +495,20 @@ public class FriendsActivity extends AppCompatActivity {
                     "http://transferly.go.ro:8080/api/users/removeFriend", postData,
                     response -> {
                         Toast.makeText(this, "Removed " + friendUsername + " from friends", Toast.LENGTH_SHORT).show();
-
-                        // curatare UI complet && reincarcare lista actualizata
-                        container.removeView(card);
-                        getFriendsList(); // sper ca i lista buna
+                        getFriendsList(); // 🔁 Reîncarcă lista de prieteni
                     },
-                    error -> Toast.makeText(this, "Failed to remove friend", Toast.LENGTH_SHORT).show()
-            );
+                    error -> {
+                        Toast.makeText(this, "Friend not found or already removed", Toast.LENGTH_SHORT).show();
+                        getFriendsList(); // 🔄 Reîncarcă oricum, ca să curețe UI-ul
+                    });
 
             requestQueue.add(request);
         });
 
-
         card.addView(deleteButton);
     }
+
+
 
 
     private void isUserActuallyFriend(String friendUsername, Runnable onValid) {
@@ -438,70 +606,89 @@ public class FriendsActivity extends AppCompatActivity {
         requestQueue.add(request);
     }
 
-    private void addIncomingRequestCard(String username) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.HORIZONTAL);
-        card.setBackgroundResource(R.drawable.friend_card_bg);
-        card.setPadding(24, 24, 24, 24);
-        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        layoutParams.setMargins(0, 0, 0, 24);
-        card.setLayoutParams(layoutParams);
-
-        TextView nameText = new TextView(this);
-        nameText.setLayoutParams(new LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        nameText.setText(username);
-        nameText.setTextSize(16);
-        nameText.setTextColor(getResources().getColor(android.R.color.white));
-        nameText.setPadding(12, 0, 0, 0);
-
-        Button actionButton = new Button(this);
-        actionButton.setText("Accept Request");
-        actionButton.setBackgroundTintList(getResources().getColorStateList(R.color.purple));
-        actionButton.setTextColor(getResources().getColor(android.R.color.white));
-
-        actionButton.setOnClickListener(v -> {
-            acceptFriend(username);
-
-            // trans butonul in Share Folders
-            actionButton.setText("Share Folders");
-            actionButton.setOnClickListener(folderClick -> {
-                Intent intent = new Intent(this, SharedFoldersActivity.class);
-                intent.putExtra("friendUsername", username);
-                startActivity(intent);
-            });
-        });
-
-        card.addView(nameText);
-        card.addView(actionButton);
-
-        LinearLayout container = findViewById(R.id.friendsListContainer);
-        container.addView(card);
-    }
+//    private void addIncomingRequestCard(String username) {
+//        LinearLayout card = new LinearLayout(this);
+//        card.setOrientation(LinearLayout.HORIZONTAL);
+//        card.setBackgroundResource(R.drawable.friend_card_bg);
+//        card.setPadding(24, 24, 24, 24);
+//        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
+//                LinearLayout.LayoutParams.MATCH_PARENT,
+//                LinearLayout.LayoutParams.WRAP_CONTENT
+//        );
+//        layoutParams.setMargins(0, 0, 0, 24);
+//        card.setLayoutParams(layoutParams);
+//
+//        TextView nameText = new TextView(this);
+//        nameText.setLayoutParams(new LinearLayout.LayoutParams(0,
+//                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+//        nameText.setText(username);
+//        nameText.setTextSize(16);
+//        nameText.setTextColor(getResources().getColor(android.R.color.white));
+//        nameText.setPadding(12, 0, 0, 0);
+//
+//        Button actionButton = new Button(this);
+//        actionButton.setText("Accept Request");
+//        actionButton.setBackgroundTintList(getResources().getColorStateList(R.color.purple));
+//        actionButton.setTextColor(getResources().getColor(android.R.color.white));
+//
+//        actionButton.setOnClickListener(v -> {
+//            acceptFriend(username);
+//
+//            // trans butonul in Share Folders
+//            actionButton.setText("Share Folders");
+//            actionButton.setOnClickListener(folderClick -> {
+//                Intent intent = new Intent(this, SharedFoldersActivity.class);
+//                intent.putExtra("friendUsername", username);
+//                startActivity(intent);
+//            });
+//        });
+//
+//        card.addView(nameText);
+//        card.addView(actionButton);
+//
+//        LinearLayout container = findViewById(R.id.friendsListContainer);
+//        container.addView(card);
+//    }
 
 
 
 
     private void acceptFriend(String senderUsername) {
         String url = "http://transferly.go.ro:8080/api/users/acceptRequest";
-        JSONObject postData = new JSONObject();
-        try {
-            postData.put("receiver", loggedInUsername);
-            postData.put("sender", senderUsername);
-        } catch (JSONException e) {
-            e.printStackTrace();
-            return;
-        }
 
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, postData,
-                response -> Toast.makeText(this, "Now friends with " + senderUsername, Toast.LENGTH_SHORT).show(),
-                error -> Toast.makeText(this, "Failed to accept request", Toast.LENGTH_SHORT).show()
-        );
+        StringRequest request = new StringRequest(Request.Method.POST, url,
+                response -> {
+                    Toast.makeText(this, "Now friends with " + senderUsername, Toast.LENGTH_SHORT).show();
+                    getFriendsList(); // Refresh list after accepting
+                },
+                error -> {
+                    String errorMessage = "Failed to accept request";
+                    if (error.networkResponse != null && error.networkResponse.data != null) {
+                        errorMessage += ": " + new String(error.networkResponse.data);
+                    }
+                    Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show();
+                    Log.e("ACCEPT_ERROR", errorMessage, error);
+                }) {
+            @Override
+            public byte[] getBody() {
+                JSONObject postData = new JSONObject();
+                try {
+                    postData.put("receiver", loggedInUsername);
+                    postData.put("sender", senderUsername);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+                return postData.toString().getBytes();
+            }
+
+            @Override
+            public String getBodyContentType() {
+                return "application/json";
+            }
+        };
 
         requestQueue.add(request);
     }
+
 
 }

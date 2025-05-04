@@ -3,12 +3,14 @@ package com.example.transferly.adapters;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.net.Uri;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.NonNull;
@@ -20,7 +22,11 @@ import com.example.transferly.R;
 import com.example.transferly.activities.FolderImageActivity;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class FolderImageAdapter extends RecyclerView.Adapter<FolderImageAdapter.ImageViewHolder> {
@@ -29,8 +35,12 @@ public class FolderImageAdapter extends RecyclerView.Adapter<FolderImageAdapter.
     private final Context context;
     private final List<Uri> imageUris;
     private final OnImageActionListener listener;
+    private final Map<String, Set<String>> likesMap;
     private ActivityResultLauncher<Intent> fullScreenLauncher;
     private static final int IMAGE_ACTIVITY_REQUEST_CODE = 123;
+
+
+//    Map<String, Set<String>> likesMap = new HashMap<>();
 
     public interface OnImageActionListener {
         void onImageLiked(int position);
@@ -39,12 +49,15 @@ public class FolderImageAdapter extends RecyclerView.Adapter<FolderImageAdapter.
 
     public FolderImageAdapter(Context context, List<Uri> imageUris,
                               OnImageActionListener listener,
-                              ActivityResultLauncher<Intent> fullScreenLauncher) {
+                              ActivityResultLauncher<Intent> fullScreenLauncher,
+                              Map<String, Set<String>> likesMap) {
         this.context = context;
         this.imageUris = imageUris;
         this.listener = listener;
         this.fullScreenLauncher = fullScreenLauncher;
+        this.likesMap = likesMap;
     }
+
 
     @NonNull
     @Override
@@ -89,6 +102,31 @@ public class FolderImageAdapter extends RecyclerView.Adapter<FolderImageAdapter.
                 .diskCacheStrategy(DiskCacheStrategy.NONE)  // Skip cache
                 .skipMemoryCache(true)  // Skip memory cache
                 .into(holder.imageView);
+
+
+        int likeCount = likesMap.getOrDefault(imageUri.toString(), new HashSet<>()).size();
+        String currentUser = "guest"; // Sau ia din SharedPreferences dacă ai acces aici
+        boolean userAlreadyLiked = likesMap.getOrDefault(imageUri.toString(), new HashSet<>()).contains(currentUser);
+
+// Arată inimioara doar dacă are like de la cineva
+        if (likeCount > 0) {
+            holder.likeCircle.setVisibility(View.VISIBLE);
+            holder.likeCircle.setImageResource(userAlreadyLiked ? R.drawable.ic_like : R.drawable.ic_liked);
+            holder.likeCircle.setColorFilter(null); // remove any tint
+        } else {
+            holder.likeCircle.setVisibility(View.GONE);
+        }
+
+// Dacă are cel puțin 2 like-uri, arată și numărul
+        if (likeCount >= 2) {
+            holder.likeCountText.setVisibility(View.VISIBLE);
+            holder.likeCountText.setText(String.valueOf(likeCount));
+            holder.likeCountText.setTextColor(Color.BLACK); // se vede pe inimioară roșie
+        } else {
+            holder.likeCountText.setVisibility(View.GONE);
+        }
+
+
     }
 
     @Override
@@ -98,12 +136,14 @@ public class FolderImageAdapter extends RecyclerView.Adapter<FolderImageAdapter.
 
     static class ImageViewHolder extends RecyclerView.ViewHolder {
         ImageView imageView, likeCircle, deleteCircle;
+        TextView likeCountText;
 
         public ImageViewHolder(@NonNull View itemView) {
             super(itemView);
             imageView = itemView.findViewById(R.id.imageView);
             likeCircle = itemView.findViewById(R.id.likeCircle);
             deleteCircle = itemView.findViewById(R.id.deleteIcon);
+            likeCountText = itemView.findViewById(R.id.likeCountText);
         }
     }
 

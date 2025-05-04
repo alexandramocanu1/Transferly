@@ -43,8 +43,14 @@ import com.google.gson.reflect.TypeToken;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
 public class FolderDetailActivity extends AppCompatActivity {
@@ -59,8 +65,12 @@ public class FolderDetailActivity extends AppCompatActivity {
 
     private List<String> likedImages, otherImages, duplicateImages, subfolders;
     private final List<String> selectedSubfolders = new ArrayList<>();
+    private Map<String, Set<String>> likesMap = new HashMap<>();
+
 
     private ActivityResultLauncher<Intent> fullScreenLauncher;
+
+
 
 
     private final ActivityResultLauncher<Intent> galleryLauncher = registerForActivityResult(
@@ -299,6 +309,14 @@ public class FolderDetailActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new GridLayoutManager(this, 3));
 
         List<Uri> imageUris = new ArrayList<>();
+
+        Collections.sort(images, (img1, img2) -> {
+            int l1 = likesMap.getOrDefault(img1, new HashSet<>()).size();
+            int l2 = likesMap.getOrDefault(img2, new HashSet<>()).size();
+            return Integer.compare(l2, l1); // desc
+        });
+
+
         for (String path : images) {
             imageUris.add(Uri.parse(path));
             Log.d("FolderDetail", "Adding image to adapter: " + path);
@@ -309,20 +327,28 @@ public class FolderDetailActivity extends AppCompatActivity {
             othersAdapter = new FolderImageAdapter(this, imageUris, new FolderImageAdapter.OnImageActionListener() {
                 @Override
                 public void onImageLiked(int position) {
-                    if (!likedImages.contains(images.get(position))) {
-                        likedImages.add(images.get(position));
+                    String image = images.get(position);
+                    String currentUser = "guest"; // sau ia din SharedPreferences
+
+                    Set<String> currentLikes = likesMap.getOrDefault(image, new HashSet<>());
+                    if (currentLikes.contains(currentUser)) {
+                        currentLikes.remove(currentUser);
                     } else {
-                        likedImages.remove(images.get(position));
+                        currentLikes.add(currentUser);
                     }
+                    likesMap.put(image, currentLikes);
+                    saveFolderData(getIntent().getStringExtra("FOLDER_NAME"));
                     updateUI();
                 }
+
 
                 @Override
                 public void onImageDeleted(int position) {
                     images.remove(position);
                     updateUI();
                 }
-            }, fullScreenLauncher);
+            }, fullScreenLauncher, likesMap);
+
 
             recyclerView.setAdapter(othersAdapter);
             Log.d("FolderDetail", "Others adapter set with " + imageUris.size() + " images");
@@ -344,7 +370,8 @@ public class FolderDetailActivity extends AppCompatActivity {
                     images.remove(position);
                     updateUI();
                 }
-            }, fullScreenLauncher);
+            }, fullScreenLauncher, likesMap);
+
 
             recyclerView.setAdapter(adapter);
         }
@@ -436,6 +463,8 @@ public class FolderDetailActivity extends AppCompatActivity {
         String imagesJson = gson.toJson(otherImages);
         editor.putString(KEY_IMAGES_PREFIX + folderId, imagesJson);
         editor.putString(KEY_SUBFOLDERS_PREFIX + folderId, gson.toJson(subfolders));
+        editor.putString("LIKES_" + folderId, gson.toJson(likesMap));
+
 
         boolean success = editor.commit(); // Use commit() instead of apply() for immediate feedback
         Log.d(TAG, "Save result: " + (success ? "successful" : "failed"));
@@ -457,6 +486,16 @@ public class FolderDetailActivity extends AppCompatActivity {
 
         String subfoldersJson = sharedPreferences.getString(KEY_SUBFOLDERS_PREFIX + folderId, null);
         subfolders = subfoldersJson != null ? gson.fromJson(subfoldersJson, new TypeToken<List<String>>() {}.getType()) : new ArrayList<>();
+
+        String likesJson = sharedPreferences.getString("LIKES_" + folderId, null);
+        if (likesJson != null) {
+            Type type = new TypeToken<Map<String, Set<String>>>() {}.getType();
+            likesMap = gson.fromJson(likesJson, type);
+        } else {
+            likesMap = new HashMap<>();
+        }
+
+
     }
 
 
@@ -597,6 +636,7 @@ public class FolderDetailActivity extends AppCompatActivity {
         Log.d(TAG, "onActivityResult - requestCode: " + requestCode + ", resultCode: " + resultCode);
 
         if (requestCode == 123 && resultCode == RESULT_OK && data != null) {
+
             String croppedUriStr = data.getStringExtra("croppedUri");
             int position = data.getIntExtra("position", -1);
 
@@ -618,8 +658,30 @@ public class FolderDetailActivity extends AppCompatActivity {
                 // Also update the UI
                 updateUI();
 
-                Toast.makeText(this, "Image cropped and saved successfully (classic)", Toast.LENGTH_SHORT).show();
             }
         }
+
+        if (resultCode == RESULT_FIRST_USER && data != null) {
+            String likedUri = data.getStringExtra("likedUri");
+            int position = data.getIntExtra("position", -1);
+            String currentUser = getSharedPreferences("user_prefs", MODE_PRIVATE).getString("username", "guest");
+
+            if (likedUri != null && position >= 0) {
+                Set<String> currentLikes = likesMap.getOrDefault(likedUri, new HashSet<>());
+                if (currentLikes.contains(currentUser)) {
+                    currentLikes.remove(currentUser);
+                } else {
+                    currentLikes.add(currentUser);
+                }
+                likesMap.put(likedUri, currentLikes);
+
+                othersAdapter.notifyItemChanged(position);
+
+                saveFolderData(getIntent().getStringExtra("FOLDER_NAME"));
+                updateUI();
+            }
+            return; // nu continuăm cu alte blocuri
+        }
+
     }
 }

@@ -1,6 +1,7 @@
 package com.example.transferly.activities;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
@@ -29,13 +30,19 @@ import com.canhub.cropper.CropImageView;
 import com.canhub.cropper.CropImageContract;
 import com.example.transferly.R;
 import com.example.transferly.adapters.FolderImagePagerAdapter;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import jp.wasabeef.glide.transformations.BlurTransformation;
 
@@ -52,6 +59,11 @@ public class FolderImageActivity extends AppCompatActivity {
     private static final int SWIPE_VELOCITY_THRESHOLD = 150;
 
     private int currentPosition = 0;
+
+    private ImageView likeButton;
+    private Map<String, Set<String>> likesMap;
+    private String currentUser;
+
 
     // Launcher for crop
     private final ActivityResultLauncher<CropImageContractOptions> cropImageLauncher =
@@ -173,7 +185,6 @@ public class FolderImageActivity extends AppCompatActivity {
         if (imageUris != null && !imageUris.isEmpty()) {
             FolderImagePagerAdapter adapter = new FolderImagePagerAdapter(this, imageUris);
             viewPager.setAdapter(adapter);
-
             viewPager.setCurrentItem(currentPosition, false);
 
             if (currentPosition < imageUris.size()) {
@@ -194,14 +205,15 @@ public class FolderImageActivity extends AppCompatActivity {
                 if (position < imageUris.size()) {
                     applyBlurEffect(imageUris.get(position));
                 }
+
+                updateLikeButtonState(likeButton, likesMap, currentUser);
             }
         });
 
         backgroundOverlay.setOnTouchListener((v, event) -> false);
-
         gestureDetector = new GestureDetectorCompat(this, new GestureListener());
 
-        // Set up crop button
+        // Crop button
         ImageView cropButton = findViewById(R.id.cropButton);
         cropButton.setOnClickListener(v -> {
             int currentPos = viewPager.getCurrentItem();
@@ -215,7 +227,80 @@ public class FolderImageActivity extends AppCompatActivity {
             Toast.makeText(this, "Starting crop...", Toast.LENGTH_SHORT).show();
             startCrop(imageToCrop);
         });
+
+        // Like button logic
+//        ImageView likeButton = findViewById(R.id.likeButton);
+
+        likeButton = findViewById(R.id.likeButton);
+
+
+//        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+//        String currentUser = prefs.getString("username", "guest");
+
+        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+        currentUser = prefs.getString("username", "guest");
+
+
+        String folderId = getIntent().getStringExtra("FOLDER_ID");
+        SharedPreferences folderPrefs = getSharedPreferences("SharedFoldersData", MODE_PRIVATE);
+        String likesKey = "LIKES_" + folderId;
+
+        Gson gson = new Gson();
+        Type type = new TypeToken<Map<String, Set<String>>>() {}.getType();
+        likesMap = gson.fromJson(folderPrefs.getString(likesKey, "{}"), type);
+
+        // Inițializează starea inimioarei pentru imaginea curentă
+        String initialImageKey = imageUris.get(currentPosition).toString();
+        Set<String> initialLikes = likesMap.getOrDefault(initialImageKey, new HashSet<>());
+        if (initialLikes.contains(currentUser)) {
+            likeButton.setImageResource(R.drawable.ic_liked);
+            likeButton.invalidate();
+        } else {
+            likeButton.setImageResource(R.drawable.ic_like);
+        }
+
+        likeButton.setOnClickListener(v -> {
+            int position = viewPager.getCurrentItem();
+            if (imageUris != null && position < imageUris.size()) {
+                Uri imageUri = imageUris.get(position);
+                String key = imageUri.toString();
+
+                Set<String> likes = likesMap.getOrDefault(key, new HashSet<>());
+                if (likes.contains(currentUser)) {
+                    likes.remove(currentUser);
+                    likeButton.setImageResource(R.drawable.ic_like);
+                } else {
+                    likes.add(currentUser);
+                    likeButton.setImageResource(R.drawable.ic_liked);
+                }
+                likesMap.put(key, likes);
+                folderPrefs.edit().putString(likesKey, gson.toJson(likesMap)).apply();
+
+                Intent resultIntent = new Intent();
+                resultIntent.putExtra("likedUri", imageUri.toString());
+                resultIntent.putExtra("position", position);
+                setResult(RESULT_FIRST_USER, resultIntent);
+                updateLikeButtonState(likeButton, likesMap, currentUser);
+
+            }
+        });
     }
+
+    private void updateLikeButtonState(ImageView likeButton, Map<String, Set<String>> likesMap, String currentUser) {
+        String folderId = getIntent().getStringExtra("FOLDER_ID");
+        if (imageUris == null || currentPosition >= imageUris.size()) return;
+
+        String imageKey = imageUris.get(currentPosition).toString();
+        Set<String> currentLikes = likesMap.getOrDefault(imageKey, new HashSet<>());
+
+        if (currentLikes.contains(currentUser)) {
+            likeButton.setImageResource(R.drawable.ic_liked);
+        } else {
+            likeButton.setImageResource(R.drawable.ic_like);
+        }
+    }
+
+
 
     private void applyBlurEffect(Uri imageUri) {
         try {

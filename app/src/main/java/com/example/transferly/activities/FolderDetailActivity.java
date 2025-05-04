@@ -37,6 +37,7 @@ import com.bumptech.glide.request.transition.Transition;
 import com.example.transferly.R;
 import com.example.transferly.adapters.FolderAdapter;
 import com.example.transferly.adapters.FolderImageAdapter;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -100,6 +101,9 @@ public class FolderDetailActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_folder_detail);
+
+        FloatingActionButton fabAddPhotos = findViewById(R.id.fabAddPhotos);
+        fabAddPhotos.setOnClickListener(v -> openGalleryForPhotos());
 
 
         String folderId = getIntent().getStringExtra("FOLDER_ID");
@@ -250,6 +254,9 @@ public class FolderDetailActivity extends AppCompatActivity {
         othersRecyclerView.setVisibility(otherImages.isEmpty() ? View.GONE : View.VISIBLE);
         duplicateRecyclerView.setVisibility(duplicateImages.isEmpty() ? View.GONE : View.VISIBLE);
         subfoldersRecyclerView.setVisibility(subfolders.isEmpty() ? View.GONE : View.VISIBLE);
+
+        View fabAddPhotos = findViewById(R.id.fabAddPhotos);
+        fabAddPhotos.setVisibility(hasContent ? View.VISIBLE : View.GONE);
 
         setupRecyclerView(likedRecyclerView, likedImages);
         setupRecyclerView(othersRecyclerView, otherImages);

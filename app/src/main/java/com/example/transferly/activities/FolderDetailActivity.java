@@ -683,5 +683,21 @@ public class FolderDetailActivity extends AppCompatActivity {
             return; // nu continuăm cu alte blocuri
         }
 
+        if (resultCode == RESULT_CANCELED && data != null) {
+            String deletedUri = data.getStringExtra("deletedUri");
+            int position = data.getIntExtra("position", -1);
+
+            if (deletedUri != null && position >= 0) {
+                otherImages.remove(deletedUri);
+                likesMap.remove(deletedUri);
+
+                saveFolderData(getIntent().getStringExtra("FOLDER_NAME"));
+                othersAdapter.notifyItemRemoved(position);
+                updateUI();
+                Toast.makeText(this, "Image deleted", Toast.LENGTH_SHORT).show();
+            }
+        }
+
+
     }
 }

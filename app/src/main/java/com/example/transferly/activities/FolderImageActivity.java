@@ -16,6 +16,7 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.GestureDetectorCompat;
 import androidx.viewpager2.widget.ViewPager2;
@@ -229,13 +230,32 @@ public class FolderImageActivity extends AppCompatActivity {
         });
 
         // Like button logic
-//        ImageView likeButton = findViewById(R.id.likeButton);
-
         likeButton = findViewById(R.id.likeButton);
 
 
-//        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
-//        String currentUser = prefs.getString("username", "guest");
+        ImageView deleteButton = findViewById(R.id.deleteButton);
+        deleteButton.setOnClickListener(v -> {
+            int position = viewPager.getCurrentItem();
+            if (position >= 0 && position < imageUris.size()) {
+                Uri imageUri = imageUris.get(position);
+
+                new AlertDialog.Builder(FolderImageActivity.this)
+                        .setTitle("Delete Photo")
+                        .setMessage("Are you sure you want to delete this photo?")
+                        .setPositiveButton("Delete", (dialog, which) -> {
+                            Intent resultIntent = new Intent();
+                            resultIntent.putExtra("deletedUri", imageUri.toString());
+                            resultIntent.putExtra("position", position);
+                            setResult(RESULT_CANCELED, resultIntent);  // poți folosi și alt cod dacă vrei
+                            finish();
+                            overridePendingTransition(0, R.anim.slide_out_down);
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            }
+        });
+
+
 
         SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
         currentUser = prefs.getString("username", "guest");

@@ -14,18 +14,35 @@
         android:contentDescription="Image" />
 
     <!-- ic inimioară (apare doar dc poza e liked) -->
-    <ImageView
-        android:id="@+id/likeCircle"
+    <FrameLayout
         android:layout_width="24dp"
         android:layout_height="24dp"
         android:layout_gravity="end|top"
-        android:layout_margin="8dp"
-        android:src="@drawable/ic_like"
-        android:visibility="gone"
-        app:tint="@null" />
+        android:layout_margin="8dp">
+
+        <ImageView
+            android:id="@+id/likeCircle"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_like"
+            android:visibility="gone"
+            app:tint="@null" />
+
+        <TextView
+            android:id="@+id/likeCountText"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            android:text="2" />
+    </FrameLayout>
 
 
-    <!-- Iconiță pentru ștergere -->
+
+    <!-- delete -->
     <ImageView
         android:id="@+id/deleteIcon"
         android:layout_width="24dp"
@@ -33,18 +50,6 @@
         android:layout_gravity="start|top"
         android:layout_margin="8dp"
         android:src="@drawable/ic_delete"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/likeCountText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="#FF0000"
-        android:textSize="12sp"
-        android:layout_gravity="end|top"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="36dp"
-        android:text="0"
         android:visibility="gone" />
 
 

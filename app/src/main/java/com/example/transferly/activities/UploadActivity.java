@@ -39,6 +39,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 //import com.bumptech.glide.request.Request;
 //import com.bumptech.glide.request.Request;
+import com.bumptech.glide.Glide;
 import com.canhub.cropper.CropImage;
 import com.canhub.cropper.CropImageContract;
 import com.example.transferly.R;
@@ -242,7 +243,6 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
                     View.SYSTEM_UI_FLAG_LAYOUT_STABLE
             );
         }
-
 
     }
 

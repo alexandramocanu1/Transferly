@@ -27,7 +27,7 @@
         <activity android:name=".activities.SharedFoldersActivity" />
         <activity android:name=".activities.FolderDetailActivity" />
         <activity android:name=".activities.FolderImageActivity" />
-
+        <activity android:name=".activities.ProfileActivity" />
 
 
 

@@ -23,6 +23,8 @@ import com.google.android.gms.common.api.ApiException;
 
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -60,9 +62,19 @@ public class LoginActivity extends AppCompatActivity {
 
                         Toast.makeText(this, "Signed in as: " + email, Toast.LENGTH_SHORT).show();
 
+                        // Salvează datele în SharedPreferences
+                        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+                        prefs.edit()
+                                .putString("username", account.getDisplayName())
+                                .putString("email", account.getEmail())
+                                .putString("profile_pic", String.valueOf(account.getPhotoUrl()))
+                                .apply();
+
                         registerUserOnServer(email, "google_dummy_password", true);
+
                         startActivity(new Intent(this, UploadActivity.class));
                         finish();
+
 
                     } else {
                         Log.e(TAG, " GoogleSignInAccount is null!");
@@ -112,19 +124,16 @@ public class LoginActivity extends AppCompatActivity {
 
     // cand o merge baza de date n o mai fi comentat
     private void loginUser() {
-        String identifier = emailInput.getText().toString().trim(); // email sau username
+        String username = emailInput.getText().toString().trim();
         String password = passwordInput.getText().toString().trim();
 
-        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
-        prefs.edit()
-                .putString("username", identifier) // save `username` || `email` in SharedPreferences
-                .putString("email", identifier) // Salvează `email`
-                .apply();
-
-        if (identifier.isEmpty() || password.isEmpty()) {
+        if (username.isEmpty() || password.isEmpty()) {
             Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+        prefs.edit().putString("username", username).apply();
 
         new Thread(() -> {
             try {
@@ -135,7 +144,7 @@ public class LoginActivity extends AppCompatActivity {
                 conn.setDoOutput(true);
 
                 JSONObject loginJson = new JSONObject();
-                loginJson.put("identifier", identifier);
+                loginJson.put("username", username);  // ✅ fix aici
                 loginJson.put("password", password);
 
                 OutputStream os = conn.getOutputStream();
@@ -146,12 +155,38 @@ public class LoginActivity extends AppCompatActivity {
                 int responseCode = conn.getResponseCode();
                 runOnUiThread(() -> {
                     if (responseCode == 200) {
-                        Toast.makeText(LoginActivity.this, "Login successful!", Toast.LENGTH_SHORT).show();
-                        startActivity(new Intent(LoginActivity.this, UploadActivity.class));
-                        finish();
+                        new Thread(() -> {
+                            try {
+                                URL emailUrl = new URL(SERVER_URL + "/email/" + username);
+                                HttpURLConnection emailConn = (HttpURLConnection) emailUrl.openConnection();
+                                emailConn.setRequestMethod("GET");
+
+                                int emailCode = emailConn.getResponseCode();
+                                if (emailCode == 200) {
+                                    BufferedReader reader = new BufferedReader(new InputStreamReader(emailConn.getInputStream()));
+                                    String email = reader.readLine();
+                                    reader.close();
+
+//                                    SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+                                    prefs.edit().putString("email", email).apply();
+                                }
+
+                                // După ce am salvat email-ul → trecem la UploadActivity
+                                runOnUiThread(() -> {
+                                    Toast.makeText(LoginActivity.this, "Login successful!", Toast.LENGTH_SHORT).show();
+                                    startActivity(new Intent(LoginActivity.this, UploadActivity.class));
+                                    finish();
+                                });
+
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                runOnUiThread(() -> Toast.makeText(LoginActivity.this, "Error loading profile email", Toast.LENGTH_SHORT).show());
+                            }
+                        }).start();
                     } else {
-                        Toast.makeText(LoginActivity.this, "Invalid username or password", Toast.LENGTH_SHORT).show();
+                        runOnUiThread(() -> Toast.makeText(LoginActivity.this, "Invalid username or password", Toast.LENGTH_SHORT).show());
                     }
+
                 });
 
             } catch (Exception e) {
@@ -160,7 +195,6 @@ public class LoginActivity extends AppCompatActivity {
             }
         }).start();
     }
-
 
 
 
@@ -187,6 +221,30 @@ public class LoginActivity extends AppCompatActivity {
     private void registerUserOnServer(String email, String password, boolean isGoogleUser) {
         new Thread(() -> {
             try {
+                // Verifică dacă username-ul există
+                URL checkUrl = new URL(SERVER_URL + "/exists/" + email);
+                HttpURLConnection checkConn = (HttpURLConnection) checkUrl.openConnection();
+                checkConn.setRequestMethod("GET");
+
+                int checkCode = checkConn.getResponseCode();
+                if (checkCode == 200) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(checkConn.getInputStream()));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) response.append(line);
+                    reader.close();
+
+                    JSONObject jsonResponse = new JSONObject(response.toString());
+                    boolean exists = jsonResponse.optBoolean("exists", false);
+
+                    if (exists) {
+                        Log.e(TAG, "Username already exists: " + email);
+                        runOnUiThread(() -> Toast.makeText(this, "Username already exists!", Toast.LENGTH_SHORT).show());
+                        return;
+                    }
+                }
+
+                // Trimite POST doar dacă nu există deja
                 URL url = new URL(SERVER_URL + "/register");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
@@ -206,7 +264,7 @@ public class LoginActivity extends AppCompatActivity {
                 if (responseCode == 200) {
                     Log.d(TAG, "User registered on server: " + email);
                 } else {
-                    Log.e(TAG, "Failed to register user on server.");
+                    Log.e(TAG, "Failed to register user on server. Code: " + responseCode);
                 }
 
             } catch (Exception e) {
@@ -214,4 +272,5 @@ public class LoginActivity extends AppCompatActivity {
             }
         }).start();
     }
+
 }

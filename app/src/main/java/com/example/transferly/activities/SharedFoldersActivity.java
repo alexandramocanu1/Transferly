@@ -28,6 +28,7 @@ import com.android.volley.Request;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
+import com.bumptech.glide.Glide;
 import com.example.transferly.R;
 import com.example.transferly.adapters.FolderAdapter;
 import com.example.transferly.adapters.FriendSelectAdapter;
@@ -131,6 +132,24 @@ public class SharedFoldersActivity extends AppCompatActivity {
                     View.SYSTEM_UI_FLAG_LAYOUT_STABLE
             );
         }
+
+
+        ImageView profileIcon = findViewById(R.id.profileIcon);
+
+        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+        String profilePicPath = prefs.getString("profile_pic", null);
+
+        if (profilePicPath != null) {
+            Glide.with(this).load(profilePicPath).into(profileIcon);
+        } else {
+            profileIcon.setImageResource(R.drawable.ic_default_profile);
+        }
+
+        profileIcon.setOnClickListener(v -> {
+            Intent intent = new Intent(SharedFoldersActivity.this, ProfileActivity.class);
+            startActivity(intent);
+        });
+
 
 
     }
@@ -579,8 +598,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
             builder.show();
         });
     }
-
-
 
 
 

@@ -84,10 +84,10 @@ public class RegisterActivity extends AppCompatActivity {
 
         mGoogleSignInClient = GoogleSignIn.getClient(this, gso);
 
-        mGoogleSignInClient.signOut().addOnCompleteListener(task -> {
-            Intent signInIntent = mGoogleSignInClient.getSignInIntent();
-            googleSignInLauncher.launch(signInIntent);
-        });
+//        mGoogleSignInClient.signOut().addOnCompleteListener(task -> {
+//            Intent signInIntent = mGoogleSignInClient.getSignInIntent();
+//            googleSignInLauncher.launch(signInIntent);
+//        });
 
 
 // Buton Google Register

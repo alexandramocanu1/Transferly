@@ -177,8 +177,11 @@ public class LoginActivity extends AppCompatActivity {
 // de revenit, pb cu asta
     private void signInWithGoogle() {
         Log.d(TAG, "Starting Google Sign-In...");
-        Intent signInIntent = mGoogleSignInClient.getSignInIntent();
-        googleSignInLauncher.launch(signInIntent);
+
+        mGoogleSignInClient.signOut().addOnCompleteListener(task -> {
+            Intent signInIntent = mGoogleSignInClient.getSignInIntent();
+            googleSignInLauncher.launch(signInIntent);
+        });
     }
 
     private void registerUserOnServer(String email, String password, boolean isGoogleUser) {

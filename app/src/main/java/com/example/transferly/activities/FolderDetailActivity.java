@@ -103,7 +103,9 @@ public class FolderDetailActivity extends AppCompatActivity {
         setContentView(R.layout.activity_folder_detail);
 
         FloatingActionButton fabAddPhotos = findViewById(R.id.fabAddPhotos);
-        fabAddPhotos.setOnClickListener(v -> openGalleryForPhotos());
+//        fabAddPhotos.setOnClickListener(v -> openGalleryForPhotos());
+        fabAddPhotos.setOnClickListener(v -> showOptions());
+
 
 
         String folderId = getIntent().getStringExtra("FOLDER_ID");
@@ -250,18 +252,20 @@ public class FolderDetailActivity extends AppCompatActivity {
         boolean hasContent = !likedImages.isEmpty() || !otherImages.isEmpty() || !duplicateImages.isEmpty() || !subfolders.isEmpty();
 
         emptyFolderLayout.setVisibility(hasContent ? View.GONE : View.VISIBLE);
+        subfoldersRecyclerView.setVisibility(subfolders.isEmpty() ? View.GONE : View.VISIBLE);
         likedRecyclerView.setVisibility(likedImages.isEmpty() ? View.GONE : View.VISIBLE);
         othersRecyclerView.setVisibility(otherImages.isEmpty() ? View.GONE : View.VISIBLE);
         duplicateRecyclerView.setVisibility(duplicateImages.isEmpty() ? View.GONE : View.VISIBLE);
-        subfoldersRecyclerView.setVisibility(subfolders.isEmpty() ? View.GONE : View.VISIBLE);
+
 
         View fabAddPhotos = findViewById(R.id.fabAddPhotos);
         fabAddPhotos.setVisibility(hasContent ? View.VISIBLE : View.GONE);
 
+        setupSubfoldersRecyclerView();
         setupRecyclerView(likedRecyclerView, likedImages);
         setupRecyclerView(othersRecyclerView, otherImages);
         setupRecyclerView(duplicateRecyclerView, duplicateImages);
-        setupSubfoldersRecyclerView();
+
     }
 
 
@@ -410,15 +414,31 @@ public class FolderDetailActivity extends AppCompatActivity {
     }
 
 
+//    private void openFolder(String folderName) {
+//        if (folderName.equals(getIntent().getStringExtra("FOLDER_NAME"))) {
+//            Toast.makeText(this, "Cannot open the same folder recursively", Toast.LENGTH_SHORT).show();
+//            return;
+//        }
+//        Intent intent = new Intent(this, FolderDetailActivity.class);
+//        intent.putExtra("FOLDER_NAME", folderName);
+//        startActivity(intent);
+//    }
+
     private void openFolder(String folderName) {
         if (folderName.equals(getIntent().getStringExtra("FOLDER_NAME"))) {
             Toast.makeText(this, "Cannot open the same folder recursively", Toast.LENGTH_SHORT).show();
             return;
         }
+
         Intent intent = new Intent(this, FolderDetailActivity.class);
         intent.putExtra("FOLDER_NAME", folderName);
+//        intent.putExtra("FOLDER_NAME", fullPath);
+
+        intent.putExtra("FOLDER_ID", getIntent().getStringExtra("FOLDER_ID"));
+
         startActivity(intent);
     }
+
 
     private void createSubfolder() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -435,23 +455,23 @@ public class FolderDetailActivity extends AppCompatActivity {
                 return;
             }
 
-            if (subfolderName.equals(getIntent().getStringExtra("FOLDER_NAME"))) {
-                Toast.makeText(this, "Subfolder name cannot match parent folder name", Toast.LENGTH_SHORT).show();
-                return;
-            }
+            String parentFolder = getIntent().getStringExtra("FOLDER_NAME");
+            String fullPath = parentFolder + "/" + subfolderName;
 
-            if (subfolders.contains(subfolderName)) {
+            if (subfolders.contains(fullPath)) {
                 Toast.makeText(this, "A subfolder with this name already exists", Toast.LENGTH_SHORT).show();
             } else {
-                subfolders.add(subfolderName);
-                saveFolderData(getIntent().getStringExtra("FOLDER_NAME"));
-                openFolder(subfolderName);
+                subfolders.add(fullPath);
+                saveFolderData(parentFolder); // ✅ salvăm doar în părintele
+
+                openFolder(fullPath);
             }
         });
 
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
         builder.show();
     }
+
 
     private void saveFolderData(String folderName) {
         String folderId = getIntent().getStringExtra("FOLDER_ID");
@@ -468,9 +488,13 @@ public class FolderDetailActivity extends AppCompatActivity {
 
         Gson gson = new Gson();
         String imagesJson = gson.toJson(otherImages);
-        editor.putString(KEY_IMAGES_PREFIX + folderId, imagesJson);
-        editor.putString(KEY_SUBFOLDERS_PREFIX + folderId, gson.toJson(subfolders));
-        editor.putString("LIKES_" + folderId, gson.toJson(likesMap));
+//        editor.putString(KEY_IMAGES_PREFIX + folderId, imagesJson);
+//        editor.putString(KEY_SUBFOLDERS_PREFIX + folderId, gson.toJson(subfolders));
+//        editor.putString("LIKES_" + folderId, gson.toJson(likesMap));
+
+        editor.putString(KEY_IMAGES_PREFIX + folderName, imagesJson);
+        editor.putString(KEY_SUBFOLDERS_PREFIX + folderName, gson.toJson(subfolders));
+        editor.putString("LIKES_" + folderName, gson.toJson(likesMap));
 
 
         boolean success = editor.commit(); // Use commit() instead of apply() for immediate feedback
@@ -488,13 +512,16 @@ public class FolderDetailActivity extends AppCompatActivity {
         SharedPreferences sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         Gson gson = new Gson();
 
-        String imagesJson = sharedPreferences.getString(KEY_IMAGES_PREFIX + folderId, null);
+//        String imagesJson = sharedPreferences.getString(KEY_IMAGES_PREFIX + folderId, null);
+        String imagesJson = sharedPreferences.getString(KEY_IMAGES_PREFIX + folderName, null);
         otherImages = imagesJson != null ? gson.fromJson(imagesJson, new TypeToken<List<String>>() {}.getType()) : new ArrayList<>();
 
-        String subfoldersJson = sharedPreferences.getString(KEY_SUBFOLDERS_PREFIX + folderId, null);
+//        String subfoldersJson = sharedPreferences.getString(KEY_SUBFOLDERS_PREFIX + folderId, null);
+        String subfoldersJson = sharedPreferences.getString(KEY_SUBFOLDERS_PREFIX + folderName, null);
         subfolders = subfoldersJson != null ? gson.fromJson(subfoldersJson, new TypeToken<List<String>>() {}.getType()) : new ArrayList<>();
 
-        String likesJson = sharedPreferences.getString("LIKES_" + folderId, null);
+//        String likesJson = sharedPreferences.getString("LIKES_" + folderId, null);
+        String likesJson = sharedPreferences.getString("LIKES_" + folderName, null);
         if (likesJson != null) {
             Type type = new TypeToken<Map<String, Set<String>>>() {}.getType();
             likesMap = gson.fromJson(likesJson, type);

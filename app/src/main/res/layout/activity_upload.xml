@@ -10,22 +10,49 @@
     <LinearLayout
         android:id="@+id/topBar"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:background="#80000000"
-        android:gravity="center_vertical">
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="8dp"
+        android:gravity="center_vertical"
+        android:background="@drawable/background_gradient"
+        android:elevation="12dp">
 
+        <!-- Buton reload în stânga -->
         <ImageView
             android:id="@+id/reloadButton"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:layout_gravity="end|top"
-            android:layout_margin="16dp"
+            android:layout_marginEnd="8dp"
             android:src="@drawable/ic_reload"
             android:contentDescription="Reload Button"
             app:tint="@android:color/white" />
 
+        <!-- Titlu centrat -->
+        <TextView
+            android:id="@+id/sharedFoldersTitle"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/white" />
+
+        <!-- Buton profil în dreapta -->
+        <ImageView
+            android:id="@+id/profileIcon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:src="@drawable/ic_default_profile"
+            android:background="@drawable/round_background_gray"
+            android:contentDescription="Profile"
+            android:padding="4dp"
+            android:scaleType="centerCrop" />
     </LinearLayout>
+
 
     <!-- Existing layout continues here -->
     <LinearLayout

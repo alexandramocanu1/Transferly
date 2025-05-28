@@ -244,6 +244,22 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
             );
         }
 
+        ImageView profileIcon = findViewById(R.id.profileIcon);
+
+        String profilePicPath = prefs.getString("profile_pic", null);
+
+        if (profilePicPath != null) {
+            Glide.with(this).load(profilePicPath).into(profileIcon);
+        } else {
+            profileIcon.setImageResource(R.drawable.ic_default_profile);
+        }
+
+        profileIcon.setOnClickListener(v -> {
+            Intent intent = new Intent(UploadActivity.this, ProfileActivity.class);
+            startActivity(intent);
+        });
+
+
     }
 
 

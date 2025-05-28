@@ -10,6 +10,7 @@ import android.view.View;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -25,6 +26,7 @@ import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.bumptech.glide.Glide;
 import com.example.transferly.R;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
@@ -161,6 +163,28 @@ public class FriendsActivity extends AppCompatActivity {
 
         getFriendsList();
         loadPendingFriendRequests();
+
+        ImageView profileIcon = findViewById(R.id.profileIcon);
+
+
+        Glide.with(this)
+                .load(R.drawable.ic_default_profile)
+                .circleCrop()
+                .into(profileIcon);
+
+
+        String profilePicPath = prefs.getString("profile_pic", null);
+
+        if (profilePicPath != null) {
+            Glide.with(this).load(profilePicPath).into(profileIcon);
+        } else {
+            profileIcon.setImageResource(R.drawable.ic_default_profile);
+        }
+
+        profileIcon.setOnClickListener(v -> {
+            Intent intent = new Intent(FriendsActivity.this, ProfileActivity.class);
+            startActivity(intent);
+        });
 
 
 

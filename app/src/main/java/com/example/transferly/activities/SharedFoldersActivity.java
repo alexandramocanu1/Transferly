@@ -157,7 +157,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
 
 
 
-
     private void setupBottomNavigation() {
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
         bottomNavigationView.setSelectedItemId(R.id.nav_shared_folders);

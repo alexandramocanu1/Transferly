@@ -3,17 +3,22 @@ package com.example.transferly.adapters;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.Environment;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
@@ -21,6 +26,9 @@ import com.bumptech.glide.signature.ObjectKey;
 import com.example.transferly.R;
 import com.example.transferly.activities.FolderImageActivity;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,6 +36,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import android.content.ContentValues;
+import android.os.Build;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.graphics.Bitmap;
+import android.widget.Toast;
+import android.content.Intent;
+import android.net.Uri;
+import com.bumptech.glide.request.target.CustomTarget;
+import com.bumptech.glide.request.transition.Transition;
+
 
 public class FolderImageAdapter extends RecyclerView.Adapter<FolderImageAdapter.ImageViewHolder> {
 
@@ -161,4 +181,8 @@ public class FolderImageAdapter extends RecyclerView.Adapter<FolderImageAdapter.
             Log.e(TAG, "Failed to update image: position " + position + " out of bounds (size: " + imageUris.size() + ")");
         }
     }
+
+
+
+
 }

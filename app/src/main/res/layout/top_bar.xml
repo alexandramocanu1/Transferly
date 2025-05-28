@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/topBar"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="16dp"
+    android:paddingBottom="8dp"
+    android:gravity="center_vertical"
+    android:background="@drawable/background_gradient"
+    android:elevation="12dp">
+
+    <TextView
+        android:id="@+id/sharedFoldersTitle"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:text="Transferly"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white" />
+
+    <ImageView
+        android:id="@+id/profileIcon"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="8dp"
+        android:src="@drawable/ic_default_profile"
+        android:background="@drawable/round_background_gray"
+        android:contentDescription="Profile"
+        android:padding="4dp"
+        android:scaleType="centerCrop" />
+</LinearLayout>

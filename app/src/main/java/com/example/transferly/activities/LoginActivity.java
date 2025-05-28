@@ -144,7 +144,7 @@ public class LoginActivity extends AppCompatActivity {
                 conn.setDoOutput(true);
 
                 JSONObject loginJson = new JSONObject();
-                loginJson.put("username", username);  // ✅ fix aici
+                loginJson.put("username", username);
                 loginJson.put("password", password);
 
                 OutputStream os = conn.getOutputStream();

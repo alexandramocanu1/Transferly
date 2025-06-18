@@ -25,6 +25,10 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.function.Consumer;
 
+import android.content.SharedPreferences;
+import androidx.appcompat.app.AppCompatDelegate;
+import com.google.android.material.materialswitch.MaterialSwitch;
+
 
 
 public class ProfileActivity extends AppCompatActivity {
@@ -44,10 +48,17 @@ public class ProfileActivity extends AppCompatActivity {
         logoutButton = findViewById(R.id.logoutButton);
         changePicButton = findViewById(R.id.changePicButton);
 
+        MaterialSwitch themeSwitch = findViewById(R.id.themeSwitch);
+
         SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
         String username = prefs.getString("username", "Unknown");
         String email = prefs.getString("email", "N/A");
         String profilePicPath = prefs.getString("profile_pic", null);
+
+        SharedPreferences settingsPrefs = getSharedPreferences("settings", MODE_PRIVATE);
+        boolean darkMode = settingsPrefs.getBoolean("dark_mode", false);
+        themeSwitch.setChecked(darkMode);
+
 
         usernameText.setText("Username: " + username);
         emailText.setText("Email: " + email);
@@ -70,6 +81,17 @@ public class ProfileActivity extends AppCompatActivity {
             intent.setType("image/*");
             startActivityForResult(intent, 101);
         });
+
+        themeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            AppCompatDelegate.setDefaultNightMode(
+                    isChecked ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO
+            );
+
+            SharedPreferences.Editor editor = settingsPrefs.edit();
+            editor.putBoolean("dark_mode", isChecked);
+            editor.apply();
+        });
+
 
 
         Button editUsernameButton = findViewById(R.id.editUsernameButton);

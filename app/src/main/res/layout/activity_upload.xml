@@ -1,80 +1,67 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:tools="http://schemas.android.com/tools"
     android:background="@drawable/background_gradient"
     android:fitsSystemWindows="true">
 
-    <!-- Transparent Top Bar -->
-    <LinearLayout
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabUpload"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="90dp"
+        app:srcCompat="@drawable/ic_plus"
+        android:backgroundTint="@color/white"
+        android:contentDescription="Upload"
+        android:visibility="gone" />
+
+    <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/topBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="8dp"
-        android:gravity="center_vertical"
         android:background="@drawable/background_gradient"
-        android:elevation="12dp">
+        android:theme="@style/ThemeOverlay.Material3.Dark.ActionBar"
+        android:elevation="4dp"
+        app:navigationIcon="@drawable/ic_reload"
+        app:title="My Uploads"
+        app:titleCentered="true"
+        app:titleTextColor="@android:color/white">
 
-        <!-- Buton reload în stânga -->
-        <ImageView
-            android:id="@+id/reloadButton"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_marginEnd="8dp"
-            android:src="@drawable/ic_reload"
-            android:contentDescription="Reload Button"
-            app:tint="@android:color/white" />
-
-        <!-- Titlu centrat -->
-        <TextView
-            android:id="@+id/sharedFoldersTitle"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:textColor="@android:color/white" />
-
-        <!-- Buton profil în dreapta -->
         <ImageView
             android:id="@+id/profileIcon"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:layout_marginStart="8dp"
+            android:layout_gravity="end"
+            android:layout_marginEnd="8dp"
+            android:scaleType="centerCrop"
             android:src="@drawable/ic_default_profile"
             android:background="@drawable/round_background_gray"
-            android:contentDescription="Profile"
-            android:padding="4dp"
-            android:scaleType="centerCrop" />
-    </LinearLayout>
+            android:contentDescription="Profile" />
+    </com.google.android.material.appbar.MaterialToolbar>
 
 
-    <!-- Existing layout continues here -->
+    <!-- Conținut principal -->
     <LinearLayout
         android:id="@+id/linearLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginBottom="?attr/actionBarSize"
-        android:gravity="center"
-        android:orientation="vertical">
+        android:layout_marginTop="?attr/actionBarSize"
+        android:orientation="vertical"
+        android:padding="8dp">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerViewImages"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_marginTop="72dp"
-            android:layout_marginBottom="32dp"
             android:layout_weight="1"
+            android:clipToPadding="false"
             android:padding="8dp"
             tools:listitem="@layout/item_image" />
-
     </LinearLayout>
 
+    <!-- Butoane acțiune -->
     <LinearLayout
         android:id="@+id/buttonContainer"
         android:layout_width="wrap_content"
@@ -86,22 +73,11 @@
         android:padding="8dp">
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fabUpload"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            android:src="@drawable/ic_plus"
-            android:layout_gravity="center_horizontal|bottom"
-            android:layout_marginBottom="90dp"
-            android:backgroundTint="@color/white"/>
-
-
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fabAdd"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="16dp"
             android:contentDescription="Adaugă imagini"
+            android:layout_marginEnd="16dp"
             app:srcCompat="@drawable/ic_plus"
             android:backgroundTint="@color/white" />
 
@@ -115,19 +91,18 @@
             android:visibility="gone" />
     </LinearLayout>
 
-
+    <!-- Text introductiv -->
     <TextView
         android:id="@+id/uploadIntroText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:gravity="center"
+        android:layout_gravity="center"
         android:text="Start sharing your files now via link"
         android:textColor="@android:color/black"
         android:textSize="18sp"
-        app:layout_anchor="@+id/linearLayout"
-        app:layout_anchorGravity="center" />
+        android:layout_marginBottom="16dp" />
 
+    <!-- Navigație jos -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNavigationView"
         android:layout_width="match_parent"
@@ -138,5 +113,4 @@
         app:itemIconTint="@color/gray"
         app:itemTextColor="@color/gray"
         app:labelVisibilityMode="labeled" />
-
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -72,6 +72,8 @@ dependencies {
 
     implementation ("com.github.CanHub:Android-Image-Cropper:4.3.3")
 
+    implementation ("com.google.android.material:material:1.11.0")
+
 
 
 }

@@ -83,6 +83,7 @@ import com.canhub.cropper.CropImageView;
 import com.canhub.cropper.CropImageContractOptions;
 import com.canhub.cropper.CropImageOptions;
 
+import com.google.android.material.appbar.MaterialToolbar;
 
 
 
@@ -108,11 +109,16 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
     private View loadingContainer, linkContentContainer;
     private EditText linkText;
 
+    private MaterialToolbar topBar;
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_upload);
+
+        topBar = findViewById(R.id.topBar);
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -141,13 +147,8 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
         fabUpload = findViewById(R.id.fabUpload);
         fabAdd = findViewById(R.id.fabAdd);
         uploadIntroText = findViewById(R.id.uploadIntroText);
-        ImageView reloadButton = findViewById(R.id.reloadButton);
-
-
-        // init hide the reload button
-        reloadButton.setVisibility(View.GONE);
-
-        reloadButton.setOnClickListener(v -> {
+        MaterialToolbar topBar = findViewById(R.id.topBar);
+        topBar.setNavigationOnClickListener(v -> {
             if (!selectedImages.isEmpty()) {
                 new AlertDialog.Builder(this)
                         .setMessage("Want to start over?")
@@ -156,23 +157,16 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
                             imagesAdapter.notifyDataSetChanged();
                             recyclerViewImages.setVisibility(View.GONE);
                             uploadIntroText.setVisibility(View.VISIBLE);
-                            reloadButton.setVisibility(View.GONE); // Hide reload button
-                            fabUpload.setImageResource(R.drawable.ic_plus); // Change FAB to "+"
+                            fabGenerateLink.setVisibility(View.GONE);
                             Toast.makeText(this, "All images cleared!", Toast.LENGTH_SHORT).show();
                         })
                         .setNegativeButton("Close", (dialog, which) -> dialog.dismiss())
                         .setCancelable(true)
                         .show();
             }
-
-            File dbFile = getApplicationContext().getDatabasePath("users.db");
-            if (!dbFile.exists()) {
-                Log.e(TAG, "Database file not found!");
-            } else {
-                Log.d(TAG, "Database file exists.");
-            }
-
         });
+
+
 
         // RecyclerView configuration
         imagesAdapter = new ImagesAdapter(this, selectedImages, this);
@@ -195,7 +189,7 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
 
         fabUpload.setOnClickListener(v -> {
             if (selectedImages.isEmpty()) {
-                checkPermissionsAndOpenGallery(); 
+                checkPermissionsAndOpenGallery();
             } else {
                 generateLink(); // generate link daca sunt imagini
             }
@@ -353,7 +347,7 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
             recyclerViewImages.setVisibility(View.VISIBLE);
             uploadIntroText.setVisibility(View.GONE);
             fabUpload.setImageResource(R.drawable.ic_generate_link);
-            findViewById(R.id.reloadButton).setVisibility(View.VISIBLE);
+//            findViewById(R.id.reloadButton).setVisibility(View.VISIBLE);
             fabGenerateLink.setVisibility(View.VISIBLE);
             saveImages(); // persist
         }
@@ -411,24 +405,26 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
             recyclerViewImages.setVisibility(View.VISIBLE);
             uploadIntroText.setVisibility(View.GONE);
             fabUpload.setImageResource(R.drawable.ic_generate_link);
-            findViewById(R.id.reloadButton).setVisibility(View.VISIBLE);
+//            findViewById(R.id.reloadButton).setVisibility(View.VISIBLE);
         } else {
             recyclerViewImages.setVisibility(View.GONE);
             uploadIntroText.setVisibility(View.VISIBLE);
-            findViewById(R.id.reloadButton).setVisibility(View.GONE);
+//            findViewById(R.id.reloadButton).setVisibility(View.GONE);
         }
     }
 
 
     @Override
     public void onImageLongClick(int position) {
-        Uri uri = selectedImages.get(position); // NU o mai stergem!
-        startCrop(uri, position); // trimitem imaginea la crop
+        Uri uri = selectedImages.get(position);
+        startCrop(uri, position); // crop la imagine
 
         if (selectedImages.isEmpty()) {
             recyclerViewImages.setVisibility(View.GONE);
             uploadIntroText.setVisibility(View.VISIBLE);
             fabUpload.setImageResource(R.drawable.ic_plus);
+            fabGenerateLink.setVisibility(View.GONE);
+            topBar.setNavigationIcon(null);
         }
     }
 
@@ -437,7 +433,7 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
     public void onListEmptied() {
         recyclerViewImages.setVisibility(View.GONE);
         uploadIntroText.setVisibility(View.VISIBLE);
-        findViewById(R.id.reloadButton).setVisibility(View.GONE); // hide reload button
+//        findViewById(R.id.reloadButton).setVisibility(View.GONE); // hide reload button
         fabUpload.setImageResource(R.drawable.ic_plus); // Change FAB to "+"
     }
 
@@ -520,47 +516,6 @@ public class UploadActivity extends AppCompatActivity implements ImagesAdapter.O
         return null;
     }
 
-
-
-//    private void generateLink() {
-//        if (selectedImages.isEmpty()) {
-//            runOnUiThread(() -> Toast.makeText(this, "Nu s-au selectat imagini", Toast.LENGTH_SHORT).show());
-//            return;
-//        }
-//
-//        new Thread(() -> {
-//            try {
-//                String folderName = "album_" + UUID.randomUUID().toString().substring(0, 8);
-//                String galleryLink = null;
-//
-//                for (Uri uri : selectedImages) {
-//                    String filePath = getFilePathFromURI(this, uri);
-//                    if (filePath == null || filePath.isEmpty()) {
-//                        runOnUiThread(() -> Toast.makeText(this, "Eroare: nu s-a putut obtine calea imaginii!", Toast.LENGTH_LONG).show());
-//                        return;
-//                    }
-//
-//                    // Aici primim linkul COMPLET (cu key si iv!) de la backend
-//                    String uploadedLink = uploadToServer(filePath, folderName);
-//
-//                    if (uploadedLink == null) {
-//                        runOnUiThread(() -> Toast.makeText(this, "Eroare la incarcare!", Toast.LENGTH_LONG).show());
-//                        return;
-//                    }
-//
-//                    galleryLink = uploadedLink; // retine ultimul link primit (toate vor avea acelasi folder, key, iv)
-//                }
-//
-//                if (galleryLink != null) {
-//                    String finalGalleryLink = galleryLink;
-//                    runOnUiThread(() -> showPopupWithLink(finalGalleryLink));
-//                }
-//
-//            } catch (Exception e) {
-//                runOnUiThread(() -> Toast.makeText(this, "Eroare la generarea link-ului", Toast.LENGTH_SHORT).show());
-//            }
-//        }).start();
-//    }
 
 
     private void generateLink() {

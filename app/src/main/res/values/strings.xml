@@ -21,6 +21,36 @@
     <string name="add_folder">Add Folder</string>
 
 
+    <string name="login_welcome">Welcome back</string>
+    <string name="username_hint">Username</string>
+    <string name="password_hint">Password</string>
+    <string name="login_button">Log in</string>
+    <string name="google_signin">Sign in with Google</string>
+    <string name="register_prompt">Don’t have an account? Register here</string>
+    <string name="username_input_desc">Enter your username</string>
+    <string name="password_input_desc">Enter your password</string>
+
+    <string name="register_title">Create an account</string>
+    <string name="email_hint">Email</string>
+    <string name="register_button">Register</string>
+    <string name="google_register">Register with Google</string>
+    <string name="login_prompt">Already have an account? Login here</string>
+
+
+    <string name="welcome_message">Welcome to Transferly!</string>
+
+    <string name="profile_picture">Profile picture</string>
+    <string name="edit_username">Edit Username</string>
+    <string name="change_picture">Change Profile Picture</string>
+    <string name="logout">Logout</string>
+    <string name="dark_mode_toggle">Dark Mode</string>
+
+<!--    <string name="friends_title">Friends</string>-->
+
+
+    <string name="your_uploads">Your Uploads</string>
+    <string name="upload_intro">Start sharing your files now via link</string>
+
 
 
 </resources>

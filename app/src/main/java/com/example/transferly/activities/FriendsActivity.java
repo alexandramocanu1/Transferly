@@ -260,48 +260,24 @@ public class FriendsActivity extends AppCompatActivity {
     }
 
 
-//    private boolean isUserAlreadyInFriendsList(String username) {
-//        // URL-ul pta obt lista de prieteni a utilizatorului
-//        String url = "http://transferly.go.ro:8080/api/users/" + loggedInUsername + "/friends";
-//
-//        final boolean[] isFriend = {false};  // Var pt a stoca rezultatul vf
-//
-//        // solicitare GET pt a obt lista de prieteni
-//        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
-//                response -> {
-//                    try {
-//                        // parcurg lista cu prieteni
-//                        for (int i = 0; i < response.length(); i++) {
-//                            String friendUsername = response.getString(i);
-//
-//                            // vf dc utilizatorul cautat e deja in lista de prieteni
-//                            if (friendUsername.equals(username)) {
-//                                isFriend[0] = true;  // adv daca l gaseste
-//                                break;
-//                            }
-//                        }
-//                    } catch (JSONException e) {
-//                        e.printStackTrace();
-//                    }
-//                },
-//                error -> {
-//                    Toast.makeText(this, "Error loading friends", Toast.LENGTH_SHORT).show();
-//                }
-//        );
-//
-//        requestQueue.add(request);
-//
-//        return isFriend[0];  // Retr rez vf
-//    }
+
+    private int dpToPx(int dp) {
+        float density = getResources().getDisplayMetrics().density;
+        return Math.round(dp * density);
+    }
+
 
     private void addIncomingRequestCard(String senderUsername) {
         LinearLayout container = findViewById(R.id.friendsListContainer);
 
         LinearLayout card = new LinearLayout(this);
-        card.setLayoutParams(new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-        ));
+        );
+        params.setMargins(0, 0, 0, dpToPx(12));
+        card.setLayoutParams(params);
+
         card.setOrientation(LinearLayout.HORIZONTAL);
         card.setBackgroundResource(R.drawable.friend_card_bg);
         card.setPadding(24, 24, 24, 24);

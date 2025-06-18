@@ -744,10 +744,34 @@ public class FolderDetailActivity extends AppCompatActivity {
     }
 
     private void showAddableFriendsDialog(String folderId, List<String> existingMembers) {
-        // This method needs implementation for getMyFriends and addFriendToFolderOnServer
-        // Placeholder implementation
-        Toast.makeText(this, "Add friends feature needs implementation", Toast.LENGTH_SHORT).show();
+        getMyFriends(allFriends -> {
+            List<String> addable = new ArrayList<>();
+            for (String f : allFriends) {
+                if (!existingMembers.contains(f)) addable.add(f);
+            }
+
+            String[] array = addable.toArray(new String[0]);
+            boolean[] checked = new boolean[array.length];
+
+            new AlertDialog.Builder(this)
+                    .setTitle("Add Friends")
+                    .setMultiChoiceItems(array, checked, (dialog, which, isChecked) -> checked[which] = isChecked)
+                    .setPositiveButton("Add", (dialog, which) -> {
+                        for (int i = 0; i < array.length; i++) {
+                            if (checked[i]) {
+                                String friend = array[i];
+                                Log.d("ADD_MEMBER", "Sending add request for friend: " + friend);
+                                addFriendToFolderOnServer(folderId, friend);
+
+                            }
+                        }
+                    })
+
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        });
     }
+
 
     private void removeMemberFromFolder(String folderId, String username) {
         String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/removeMember";
@@ -775,7 +799,7 @@ public class FolderDetailActivity extends AppCompatActivity {
     }
 
     private void getMyFriends(Consumer<List<String>> callback) {
-        String url = "http://transferly.go.ro:8080/api/friends/" + currentUser;
+        String url = "http://transferly.go.ro:8080/api/users/" + currentUser + "/friends";
 
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
                 response -> {
@@ -798,29 +822,30 @@ public class FolderDetailActivity extends AppCompatActivity {
     }
 
     private void addFriendToFolderOnServer(String folderId, String friendUsername) {
-        String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/addMember";
-
         try {
+            Long longFolderId = Long.parseLong(folderId);
+            String url = "http://transferly.go.ro:8080/api/shared/" + longFolderId + "/addMember";
+
             JSONObject body = new JSONObject();
-            body.put("member", friendUsername);
+            body.put("member", friendUsername); 
 
             JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, body,
                     response -> {
                         Toast.makeText(this, "Added " + friendUsername + " to folder", Toast.LENGTH_SHORT).show();
-                        // Refresh the members list
                         fetchAndDisplayFolderMembers();
                     },
                     error -> {
-                        Log.e(TAG, "Failed to add friend to folder", error);
+                        Log.e("ADD_MEMBER", "Failed to add " + friendUsername + " to folder", error);
                         Toast.makeText(this, "Failed to add " + friendUsername, Toast.LENGTH_SHORT).show();
                     });
 
-            requestQueue.add(request);
+            Volley.newRequestQueue(this).add(request);
         } catch (Exception e) {
-            Log.e(TAG, "Error creating add member request", e);
+            Log.e("ADD_MEMBER", "Exception while adding " + friendUsername, e);
             Toast.makeText(this, "Error adding friend", Toast.LENGTH_SHORT).show();
         }
     }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {

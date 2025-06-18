@@ -33,6 +33,7 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.target.CustomTarget;
@@ -702,17 +703,19 @@ public class FolderDetailActivity extends AppCompatActivity {
     }
 
     private void deleteFolderFromServer(String folderId) {
-        String url = "http://transferly.go.ro:8080/api/shared/delete/" + folderId;
+        String url = "http://transferly.go.ro:8080/api/shared/delete/" + folderId + "?username=" + currentUser;
 
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.DELETE, url, null,
+        StringRequest request = new StringRequest(Request.Method.DELETE, url,
                 response -> {
+                    Log.d("DELETE_FOLDER", "Server response: " + response);
                     Toast.makeText(this, "Folder deleted successfully", Toast.LENGTH_SHORT).show();
                     finish();
                 },
                 error -> {
-                    Log.e(TAG, "Failed to delete folder", error);
-                    Toast.makeText(this, "Failed to delete folder", Toast.LENGTH_SHORT).show();
+                    Log.e("DELETE_FOLDER", "Error deleting folder", error);
+                    Toast.makeText(this, "❌ Failed to delete folder", Toast.LENGTH_SHORT).show();
                 });
+
 
         requestQueue.add(request);
     }
@@ -824,27 +827,28 @@ public class FolderDetailActivity extends AppCompatActivity {
     private void addFriendToFolderOnServer(String folderId, String friendUsername) {
         try {
             Long longFolderId = Long.parseLong(folderId);
-            String url = "http://transferly.go.ro:8080/api/shared/" + longFolderId + "/addMember";
+            String url = "http://transferly.go.ro:8080/api/shared/" + longFolderId + "/requestAddMember";
 
             JSONObject body = new JSONObject();
-            body.put("member", friendUsername); 
+            body.put("member", friendUsername);
 
             JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, body,
                     response -> {
-                        Toast.makeText(this, "Added " + friendUsername + " to folder", Toast.LENGTH_SHORT).show();
-                        fetchAndDisplayFolderMembers();
+                        Toast.makeText(this, "⏳ Request sent! Awaiting approvals.", Toast.LENGTH_SHORT).show();
                     },
                     error -> {
-                        Log.e("ADD_MEMBER", "Failed to add " + friendUsername + " to folder", error);
-                        Toast.makeText(this, "Failed to add " + friendUsername, Toast.LENGTH_SHORT).show();
+                        Log.e("ADD_MEMBER", "Failed to request add " + friendUsername, error);
+                        Toast.makeText(this, "❌ Failed to send request", Toast.LENGTH_SHORT).show();
                     });
 
             Volley.newRequestQueue(this).add(request);
         } catch (Exception e) {
-            Log.e("ADD_MEMBER", "Exception while adding " + friendUsername, e);
+            Log.e("ADD_MEMBER", "Exception while requesting add " + friendUsername, e);
             Toast.makeText(this, "Error adding friend", Toast.LENGTH_SHORT).show();
         }
     }
+
+
 
 
     @Override

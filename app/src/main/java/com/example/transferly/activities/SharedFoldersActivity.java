@@ -51,9 +51,6 @@ import com.android.volley.toolbox.StringRequest;
 
 import androidx.annotation.Nullable;
 
-
-
-
 public class SharedFoldersActivity extends AppCompatActivity {
     private TextView sharedFoldersTitle;
     private RecyclerView foldersRecyclerView;
@@ -67,12 +64,13 @@ public class SharedFoldersActivity extends AppCompatActivity {
     private List<String> orderedFolderIds = new ArrayList<>();
 
     private ImageView trashIcon;
-
     private ItemTouchHelper touchHelper;
 
     private long backPressedTime = 0;
     private Toast backToast;
 
+    // ✅ Track pending requests to avoid duplicates
+    private Map<String, List<String>> checkedPendingRequests = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,7 +82,7 @@ public class SharedFoldersActivity extends AppCompatActivity {
             public void handleOnBackPressed() {
                 if (backPressedTime + 2000 > System.currentTimeMillis()) {
                     if (backToast != null) backToast.cancel();
-                    finishAffinity(); // iese din aplicație
+                    finishAffinity();
                 } else {
                     backToast = Toast.makeText(SharedFoldersActivity.this, "Press back again to exit", Toast.LENGTH_SHORT);
                     backToast.show();
@@ -104,39 +102,22 @@ public class SharedFoldersActivity extends AppCompatActivity {
         trashIcon = findViewById(R.id.trashIcon);
         trashIcon.setVisibility(View.GONE);
 
-
-
         loadFoldersFromServer();
-
-
         updateFoldersCount();
         setupRecyclerView();
 
         addFolderButton.setOnClickListener(view -> showAddSharedFolderDialog());
         setupBottomNavigation();
 
-
-//        ImageView trashIcon = findViewById(R.id.trashIcon);
-//        trashIcon.setVisibility(View.GONE);
-
-
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             Window window = getWindow();
-
-            int navColor = Color.parseColor("#111A20"); // ac culoare ca bara
-
+            int navColor = Color.parseColor("#111A20");
             window.setNavigationBarColor(navColor);
             window.setStatusBarColor(navColor);
-
-            window.getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            );
+            window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
         }
 
-
         ImageView profileIcon = findViewById(R.id.profileIcon);
-
         SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
         String profilePicPath = prefs.getString("profile_pic", null);
 
@@ -150,13 +131,7 @@ public class SharedFoldersActivity extends AppCompatActivity {
             Intent intent = new Intent(SharedFoldersActivity.this, ProfileActivity.class);
             startActivity(intent);
         });
-
-
-
     }
-
-
-
 
     private void setupBottomNavigation() {
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
@@ -174,7 +149,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
                 overridePendingTransition(0, 0);
                 return true;
             } else if (itemId == R.id.nav_shared_folders) {
-                // Deja aici, nu face nimic
                 return true;
             }
 
@@ -182,17 +156,8 @@ public class SharedFoldersActivity extends AppCompatActivity {
         });
     }
 
-
     private void setupRecyclerView() {
-//        if (folderStructure == null) {
-//            folderStructure = new HashMap<>();
-//        } else {
-//            folderStructure.clear();
-//        }
-
         foldersRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
-//        List<String> displayFolders = new ArrayList<>(folderNames.values());
-//        adapter = new FolderAdapter(this, new ArrayList<>(folderNames.values()), selectedFolders,
 
         List<String> displayFolders = new ArrayList<>();
         for (String id : orderedFolderIds) {
@@ -206,25 +171,15 @@ public class SharedFoldersActivity extends AppCompatActivity {
         );
 
         foldersRecyclerView.setAdapter(adapter);
-
         updateFoldersCount();
 
-
-
-    // activate drag and drop
-//        ItemTouchHelper touchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(
-//        ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.START | ItemTouchHelper.END,
-//                0) {
-//        }
-
         touchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(
-                ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.START | ItemTouchHelper.END,
-                0) {
+                ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.START | ItemTouchHelper.END, 0) {
+
             @Override
             public boolean isLongPressDragEnabled() {
-                return true; // permite long press drag vizibil
+                return true;
             }
-
 
             @Override
             public boolean onMove(@NonNull RecyclerView recyclerView,
@@ -242,47 +197,26 @@ public class SharedFoldersActivity extends AppCompatActivity {
             @Override
             public void onSelectedChanged(@Nullable RecyclerView.ViewHolder viewHolder, int actionState) {
                 super.onSelectedChanged(viewHolder, actionState);
-                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
-                    trashIcon.setVisibility(View.VISIBLE);
-                } else if (actionState == ItemTouchHelper.ACTION_STATE_IDLE) {
-                    trashIcon.setVisibility(View.GONE);
-                }
             }
 
             @Override
             public void clearView(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder) {
                 super.clearView(recyclerView, viewHolder);
-
                 View itemView = viewHolder.itemView;
                 int[] trashPos = new int[2];
                 trashIcon.getLocationOnScreen(trashPos);
-
                 int[] itemPos = new int[2];
                 itemView.getLocationOnScreen(itemPos);
-
-                // verificare daca s-a dat DRAG pe cos
-                if (itemPos[0] >= trashPos[0] - 100 && itemPos[0] <= trashPos[0] + trashIcon.getWidth() &&
-                        itemPos[1] >= trashPos[1] - 100 && itemPos[1] <= trashPos[1] + trashIcon.getHeight()) {
-
-                    int position = viewHolder.getAdapterPosition();
-                    String folderName = adapter.getFolders().get(position);
-
-                    confirmFolderDeleteByName(folderName);
-                }
             }
 
             @Override
             public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
-                // Nu faci nimic aici, da nu merge fara
+                // Required method, but not used
             }
-
         });
 
         touchHelper.attachToRecyclerView(foldersRecyclerView);
-
-
     }
-
 
     private void updateFoldersCount() {
         sharedFoldersTitle.setText("Shared Folders (" + folderStructure.size() + ")");
@@ -307,13 +241,11 @@ public class SharedFoldersActivity extends AppCompatActivity {
 
             String folderId = UUID.randomUUID().toString();
             folderNames.put(folderId, folderName);
-
             orderedFolderIds.add(folderId);
 
             if (!folderStructure.containsKey(folderId)) {
                 folderStructure.put(folderId, new ArrayList<>());
             }
-
 
             if (parentFolder != null) {
                 folderStructure.putIfAbsent(parentFolder, new ArrayList<>());
@@ -334,7 +266,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
         builder.show();
     }
 
-
     private void openFolder(String folderName) {
         String folderId = null;
 
@@ -342,7 +273,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
             Toast.makeText(this, "Folder doesn't exist", Toast.LENGTH_SHORT).show();
             return;
         }
-
 
         for (Map.Entry<String, String> entry : folderNames.entrySet()) {
             if (entry.getValue().equals(folderName)) {
@@ -385,10 +315,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
         }
     }
 
-
-
-
-
     private void loadMainFolders() {
         SharedPreferences sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         Gson gson = new Gson();
@@ -411,10 +337,8 @@ public class SharedFoldersActivity extends AppCompatActivity {
         if (orderJson != null) {
             orderedFolderIds = gson.fromJson(orderJson, new TypeToken<List<String>>() {}.getType());
         } else {
-            // dc nu exista, init cu toate ID-urile
             orderedFolderIds = new ArrayList<>(folderNames.keySet());
         }
-
     }
 
     private void saveMainFolders() {
@@ -427,20 +351,14 @@ public class SharedFoldersActivity extends AppCompatActivity {
         editor.apply();
     }
 
-
     private void onFolderClick(String folderName) {
-//        if (!selectedFolders.isEmpty()) {
-//            toggleSelection(folderName);
-//        } else {
-            openFolder(folderName);
-        //}
+        openFolder(folderName);
     }
 
     private void onFolderLongClick(String folderName) {
-//        toggleSelection(folderName);
+        // Optional: Add context menu here
     }
 
-// asta era pt selectare folder
     private void toggleSelection(String folderName) {
         if (selectedFolders.contains(folderName)) {
             selectedFolders.remove(folderName);
@@ -451,13 +369,11 @@ public class SharedFoldersActivity extends AppCompatActivity {
         deleteFoldersButton.setVisibility(selectedFolders.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
-
     private void confirmDeleteSelectedFolders() {
         StringBuilder message = new StringBuilder("Are you sure you want to delete:\n");
         for (String name : selectedFolders) {
             message.append("• ").append(name).append("\n");
         }
-
 
         new AlertDialog.Builder(this)
                 .setTitle("Delete folders")
@@ -486,11 +402,7 @@ public class SharedFoldersActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
-
     }
-
-
-
 
     private void createSharedFolderOnServer(String folderName, List<String> memberUsernames) {
         SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
@@ -506,7 +418,7 @@ public class SharedFoldersActivity extends AppCompatActivity {
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, new JSONObject(data),
                 response -> {
                     Toast.makeText(this, "Shared folder created!", Toast.LENGTH_SHORT).show();
-                    loadFoldersFromServer(); //reincarca
+                    loadFoldersFromServer();
                 },
                 error -> {
                     Toast.makeText(this, "Failed to create folder", Toast.LENGTH_SHORT).show();
@@ -514,7 +426,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
 
         Volley.newRequestQueue(this).add(request);
     }
-
 
     private void loadFoldersFromServer() {
         folderStructure.clear();
@@ -534,19 +445,19 @@ public class SharedFoldersActivity extends AppCompatActivity {
                             String id = String.valueOf(folderJson.optLong("id"));
 
                             folderNames.put(id, name);
-//                            orderedFolderIds.add(id);
                             if (!orderedFolderIds.contains(id)) {
                                 orderedFolderIds.add(id);
                             }
-
                             folderStructure.put(id, new ArrayList<>());
                         }
                     }
 
                     saveMainFolders();
-
                     setupRecyclerView();
                     updateFoldersCount();
+
+                    // ✅ Check pending requests AFTER folders are loaded
+                    checkPendingRequests();
                 },
                 error -> {
                     Toast.makeText(this, "Failed to load folders", Toast.LENGTH_SHORT).show();
@@ -555,9 +466,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
 
         Volley.newRequestQueue(this).add(request);
     }
-
-
-
 
     private void showAddSharedFolderDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -571,7 +479,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
         getMyFriends(allFriends -> {
             List<String> selectedFriends = new ArrayList<>();
 
-            // Adapter custom care gestionează selecția
             FriendSelectAdapter adapter = new FriendSelectAdapter(allFriends, friendUsername -> {
                 if (selectedFriends.contains(friendUsername)) {
                     selectedFriends.remove(friendUsername);
@@ -599,9 +506,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
         });
     }
 
-
-
-
     private void getMyFriends(Consumer<List<String>> callback) {
         SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
         String username = prefs.getString("username", "guest");
@@ -613,7 +517,7 @@ public class SharedFoldersActivity extends AppCompatActivity {
                     for (int i = 0; i < response.length(); i++) {
                         friends.add(response.optString(i));
                     }
-                    callback.accept(friends); // trimite lista spre UI
+                    callback.accept(friends);
                 },
                 error -> {
                     Toast.makeText(this, "Failed to load friends", Toast.LENGTH_SHORT).show();
@@ -622,7 +526,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
 
         Volley.newRequestQueue(this).add(request);
     }
-
 
     private void confirmFolderDeleteByName(String folderName) {
         String folderId = null;
@@ -647,8 +550,9 @@ public class SharedFoldersActivity extends AppCompatActivity {
 
                     String url = "http://transferly.go.ro:8080/api/shared/delete/" + finalFolderId + "?username=" + currentUser;
 
-                    StringRequest request = new StringRequest(Request.Method.DELETE, url,
+                    JsonObjectRequest request = new JsonObjectRequest(Request.Method.DELETE, url, null,
                             response -> {
+                                Log.d("DELETE_FOLDER", "Response: " + response);
                                 folderNames.remove(finalFolderId);
                                 folderStructure.remove(finalFolderId);
                                 orderedFolderIds.remove(finalFolderId);
@@ -658,7 +562,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
                                 Toast.makeText(this, "✅ Folder deleted", Toast.LENGTH_SHORT).show();
                             },
                             error -> {
-                                // Daca e null dar folderul dispare dupa refresh, probabil s-a sters totusi
                                 if (error.networkResponse == null) {
                                     Log.w("DELETE_FAIL", "No response received, assuming deletion worked.");
                                     folderNames.remove(finalFolderId);
@@ -678,10 +581,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
                             }
                     );
 
-
-                    Volley.newRequestQueue(this).add(request);
-
-
                     Volley.newRequestQueue(this).add(request);
                 })
                 .setNegativeButton("Cancel", null)
@@ -689,56 +588,103 @@ public class SharedFoldersActivity extends AppCompatActivity {
     }
 
 
-    private void showAddFriendToFolderDialog(String folderId) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Add Friend to Folder");
+    private void checkPendingRequests() {
+        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+        String currentUser = prefs.getString("username", "guest");
 
-        View view = getLayoutInflater().inflate(R.layout.dialog_add_friend_to_folder, null);
-        builder.setView(view);
+        Log.d("PENDING_CHECK", "Checking pending requests for user: " + currentUser);
+        Log.d("PENDING_CHECK", "Number of folders to check: " + orderedFolderIds.size());
 
-        RecyclerView recyclerView = view.findViewById(R.id.friendsRecyclerView);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        for (String folderId : orderedFolderIds) {
+            String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/pendingRequests";
+            Log.d("PENDING_CHECK", "Checking folder ID: " + folderId);
 
-        getMyFriends(allFriends -> {
-            List<String> selected = new ArrayList<>();
+            JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
+                    response -> {
+                        Log.d("PENDING_CHECK", "Response for folder " + folderId + ": " + response.toString());
 
-            FriendSelectAdapter adapter = new FriendSelectAdapter(allFriends, friend -> {
-                if (selected.contains(friend)) {
-                    selected.remove(friend);
-                } else {
-                    selected.add(friend);
-                }
-            });
+                        for (int i = 0; i < response.length(); i++) {
+                            JSONObject requestObj = response.optJSONObject(i);
+                            if (requestObj != null) {
+                                String requestedUser = requestObj.optString("requestedUser");
+                                String folderName = folderNames.get(folderId);
 
-            recyclerView.setAdapter(adapter);
+                                // ✅ Create unique key to track requests
+                                String requestKey = folderId + "_" + requestedUser;
 
-            builder.setPositiveButton("Add", (dialog, which) -> {
-                if (!selected.isEmpty()) {
-                    for (String friend : selected) {
-                        addFriendToFolderOnServer(folderId, friend);
-                    }
-                }
-            });
+                                // ✅ Only show dialog if not already processed
+                                if (!checkedPendingRequests.containsKey(requestKey)) {
+                                    checkedPendingRequests.put(requestKey, new ArrayList<>());
+                                    Log.d("PENDING_APPROVAL", "Showing approval dialog for: " + requestedUser + " in folder: " + folderName);
+                                    showApprovalDialog(folderId, folderName, requestedUser, currentUser, requestKey);
+                                } else {
+                                    Log.d("PENDING_APPROVAL", "Request already processed: " + requestKey);
+                                }
+                            }
+                        }
+                    },
+                    error -> {
+                        Log.e("PENDING_REQUESTS", "Failed to load pending requests for folder " + folderId + ": " + error.toString());
+                    });
 
-            builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-            builder.show();
+            Volley.newRequestQueue(this).add(request);
+        }
+    }
+
+    // ✅ FIXED: Enhanced approval dialog with request tracking
+    private void showApprovalDialog(String folderId, String folderName, String requestedUser, String currentUser, String requestKey) {
+        runOnUiThread(() -> {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("🔐 Folder Join Request")
+                    .setMessage("👤 " + requestedUser + " wants to join the folder:\n📁 '" + folderName + "'\n\n✅ Do you approve this request?")
+                    .setPositiveButton("✅ Approve", (dialog, which) -> {
+                        Log.d("APPROVAL", "User " + currentUser + " approved " + requestedUser + " for folder " + folderId);
+                        approveUserRequest(folderId, requestedUser, currentUser, requestKey);
+                    })
+                    .setNegativeButton("❌ Deny", (dialog, which) -> {
+                        Log.d("APPROVAL", "User " + currentUser + " denied " + requestedUser + " for folder " + folderId);
+                        // ✅ Mark as processed even if denied
+                        checkedPendingRequests.put(requestKey, List.of("DENIED"));
+                        Toast.makeText(this, "❌ Request denied", Toast.LENGTH_SHORT).show();
+                    })
+                    .setCancelable(false)
+                    .show();
         });
     }
 
-
-    private void addFriendToFolderOnServer(String folderId, String friendUsername) {
-        String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/addMember";
+    private void approveUserRequest(String folderId, String requestedUser, String currentUser, String requestKey) {
+        String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/approveAddMember";
 
         Map<String, String> data = new HashMap<>();
-        data.put("newMember", friendUsername);
+        data.put("member", requestedUser);
+        data.put("approver", currentUser);
+
+        Log.d("APPROVAL_REQUEST", "Sending approval: " + data.toString());
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, new JSONObject(data),
-                response -> Toast.makeText(this, "Friend added!", Toast.LENGTH_SHORT).show(),
-                error -> Toast.makeText(this, "Failed to add friend", Toast.LENGTH_SHORT).show()
-        );
+                response -> {
+                    Log.d("APPROVAL_RESPONSE", "Response: " + response.toString());
+
+                    boolean success = response.optBoolean("success", false);
+                    String message = response.optString("message", "Unknown response");
+
+                    checkedPendingRequests.put(requestKey, List.of(success ? "APPROVED" : "RECORDED"));
+
+                    if (success) {
+                        Toast.makeText(this, "✅ " + message, Toast.LENGTH_SHORT).show();
+                        if (message.contains("Member added")) {
+                            loadFoldersFromServer(); // 🔁 refresh dacă membrul a fost adăugat
+                        }
+                    } else {
+                        Toast.makeText(this, "⚠️ Approval recorded, waiting for others", Toast.LENGTH_SHORT).show();
+                    }
+                },
+                error -> {
+                    Log.e("APPROVAL_FAIL", "Error approving: " + error.toString());
+                    Toast.makeText(this, "❌ Error sending approval", Toast.LENGTH_SHORT).show();
+                });
 
         Volley.newRequestQueue(this).add(request);
     }
-
 
 }

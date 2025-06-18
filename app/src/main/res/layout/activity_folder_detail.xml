@@ -4,155 +4,154 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-<LinearLayout
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
-
-
-    <ImageView
-        android:id="@+id/deleteFolderBtn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="end"
-        android:src="@drawable/ic_delete"
-        android:padding="8dp"
-        android:contentDescription="Delete Folder"
-        app:tint="@android:color/holo_red_light" />
-
-
+    <!-- Header fix (iconițe + titlu folder) -->
     <LinearLayout
-        android:id="@+id/shareInfoBar"
+        android:id="@+id/fixedHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="12dp"
-        android:background="@color/dark_gray"
-        android:visibility="gone">
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:background="@android:color/transparent"
+        android:elevation="4dp">
 
+        <!-- Bara cu membri și butonul de ștergere -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical|end"
+            android:paddingBottom="8dp">
+
+            <LinearLayout
+                android:id="@+id/memberIconsLayout"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:gravity="start"
+                android:paddingEnd="8dp"
+                android:layout_marginEnd="8dp" />
+
+            <ImageView
+                android:id="@+id/deleteFolderBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_delete"
+                android:padding="8dp"
+                android:contentDescription="Delete Folder"
+                app:tint="@android:color/holo_red_light" />
+        </LinearLayout>
+
+        <!-- Titlu folder -->
         <TextView
-            android:id="@+id/folderMembersInfo"
-            android:layout_width="0dp"
+            android:id="@+id/folderDetailTitle"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textColor="@android:color/white"
-            android:text="Shared with: ..." />
-
-        <ImageView
-            android:id="@+id/deleteFolderBtnInsideBar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/ic_delete"
-            android:padding="8dp"
-            app:tint="@android:color/holo_red_light" />
-
+            android:text="Folder Name"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:padding="16dp" />
     </LinearLayout>
 
-    <!-- Titlu pentru numele folderului -->
-    <TextView
-        android:id="@+id/folderDetailTitle"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Folder Name"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:padding="16dp" />
-
-    <!-- Layout pentru folder gol -->
-    <LinearLayout
-        android:id="@+id/emptyFolderLayout"
+    <!-- ScrollView cu restul conținutului -->
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:visibility="gone">
+        android:layout_marginTop="140dp"
+        android:fillViewport="true">
 
-        <TextView
-            android:id="@+id/emptyFolderText"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="This folder is empty. Start by uploading photos or creating a subfolder."
-            android:textSize="16sp"
-            android:gravity="center"
-            android:paddingBottom="16dp" />
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <Button
-            android:id="@+id/startNowButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Start Now" />
-    </LinearLayout>
+            <!-- Folder gol -->
+            <LinearLayout
+                android:id="@+id/emptyFolderLayout"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:visibility="gone">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/subfoldersRecyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:layout_marginBottom="16dp" />
+                <TextView
+                    android:id="@+id/emptyFolderText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="This folder is empty. Start by uploading photos or creating a subfolder."
+                    android:textSize="16sp"
+                    android:gravity="center"
+                    android:paddingBottom="16dp" />
 
-    <!-- Titlu pentru sectiunea Liked -->
-    <TextView
-        android:id="@+id/likedTitle"
+                <Button
+                    android:id="@+id/startNowButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Start Now" />
+            </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/subfoldersRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:layout_marginBottom="16dp" />
+
+            <TextView
+                android:id="@+id/likedTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Liked"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/likedRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:layout_marginBottom="16dp" />
+
+            <TextView
+                android:id="@+id/othersTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Others"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/othersRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:layout_marginBottom="16dp" />
+
+            <TextView
+                android:id="@+id/duplicateTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Duplicate"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/duplicateRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- FAB jos dreapta -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabAddPhotos"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Liked"
-        android:textStyle="bold"
-        android:visibility="gone" />
-
-    <!-- RecyclerView pentru sectiunea Liked -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/likedRecyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:layout_marginBottom="16dp" />
-
-    <!-- Titlu pentru sectiunea Restul -->
-    <TextView
-        android:id="@+id/othersTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Others"
-        android:textStyle="bold"
-        android:visibility="gone" />
-
-    <!-- RecyclerView pentru sectiunea Restul -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/othersRecyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:layout_marginBottom="16dp" />
-
-    <!-- Titlu pentru sectiunea Duplicate -->
-    <TextView
-        android:id="@+id/duplicateTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Duplicate"
-        android:textStyle="bold"
-        android:visibility="gone" />
-
-    <!-- RecyclerView pentru sectiunea Duplicate -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/duplicateRecyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone" />
-
-
-
-</LinearLayout>
-
-<com.google.android.material.floatingactionbutton.FloatingActionButton
-android:id="@+id/fabAddPhotos"
-android:layout_width="wrap_content"
-android:layout_height="wrap_content"
-android:layout_gravity="bottom|end"
-android:layout_margin="24dp"
-android:contentDescription="Add Photos"
-android:src="@drawable/ic_plus"/>
-
-    </FrameLayout>
+        android:layout_gravity="bottom|end"
+        android:layout_margin="24dp"
+        android:contentDescription="Add Photos"
+        android:src="@drawable/ic_plus" />
+</FrameLayout>

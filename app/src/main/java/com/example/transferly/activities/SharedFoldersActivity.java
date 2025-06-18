@@ -22,6 +22,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.ItemTouchHelper;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.android.volley.Request;
@@ -686,5 +687,58 @@ public class SharedFoldersActivity extends AppCompatActivity {
                 .setNegativeButton("Cancel", null)
                 .show();
     }
+
+
+    private void showAddFriendToFolderDialog(String folderId) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Add Friend to Folder");
+
+        View view = getLayoutInflater().inflate(R.layout.dialog_add_friend_to_folder, null);
+        builder.setView(view);
+
+        RecyclerView recyclerView = view.findViewById(R.id.friendsRecyclerView);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+
+        getMyFriends(allFriends -> {
+            List<String> selected = new ArrayList<>();
+
+            FriendSelectAdapter adapter = new FriendSelectAdapter(allFriends, friend -> {
+                if (selected.contains(friend)) {
+                    selected.remove(friend);
+                } else {
+                    selected.add(friend);
+                }
+            });
+
+            recyclerView.setAdapter(adapter);
+
+            builder.setPositiveButton("Add", (dialog, which) -> {
+                if (!selected.isEmpty()) {
+                    for (String friend : selected) {
+                        addFriendToFolderOnServer(folderId, friend);
+                    }
+                }
+            });
+
+            builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
+            builder.show();
+        });
+    }
+
+
+    private void addFriendToFolderOnServer(String folderId, String friendUsername) {
+        String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/addMember";
+
+        Map<String, String> data = new HashMap<>();
+        data.put("newMember", friendUsername);
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, new JSONObject(data),
+                response -> Toast.makeText(this, "Friend added!", Toast.LENGTH_SHORT).show(),
+                error -> Toast.makeText(this, "Failed to add friend", Toast.LENGTH_SHORT).show()
+        );
+
+        Volley.newRequestQueue(this).add(request);
+    }
+
 
 }

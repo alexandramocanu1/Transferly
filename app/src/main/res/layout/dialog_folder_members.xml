@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerMembers"
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:layout_marginBottom="12dp"/>
+
+    <Button
+        android:id="@+id/btnAddFriend"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Add Friend"
+        android:backgroundTint="@android:color/holo_green_light"
+        android:textColor="@android:color/white" />
+</LinearLayout>

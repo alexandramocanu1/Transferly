@@ -20,18 +20,27 @@
         android:networkSecurityConfig="@xml/network_security_config">
 
 <!--        <activity android:name=".activities.FullImageActivity" />-->
-    <activity android:name=".activities.LoginActivity" />
-        <activity android:name=".activities.RegisterActivity" />
-        <activity android:name=".activities.UploadActivity" />
-        <activity android:name=".activities.FriendsActivity" />
-        <activity android:name=".activities.SharedFoldersActivity" />
-        <activity android:name=".activities.FolderDetailActivity" />
-        <activity android:name=".activities.FolderImageActivity" />
-        <activity android:name=".activities.ProfileActivity" />
+    <activity android:name=".activities.LoginActivity"
+        android:screenOrientation="portrait"/>
+        <activity android:name=".activities.RegisterActivity"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".activities.UploadActivity"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".activities.FriendsActivity"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".activities.SharedFoldersActivity"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".activities.FolderDetailActivity"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".activities.FolderImageActivity"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".activities.ProfileActivity"
+            android:screenOrientation="portrait"/>
 
 
 
         <activity android:name=".activities.MainActivity"
+            android:screenOrientation="portrait"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

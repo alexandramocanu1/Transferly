@@ -37,6 +37,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
@@ -608,11 +609,25 @@ public class SharedFoldersActivity extends AppCompatActivity {
                             if (requestObj != null) {
                                 String requestedUser = requestObj.optString("requestedUser");
                                 String folderName = folderNames.get(folderId);
+                                JSONArray approvalsArray = requestObj.optJSONArray("approvals");
 
-                                // ✅ Create unique key to track requests
+                                // ✅ Extrage aprobările existente
+                                List<String> approvals = new ArrayList<>();
+                                if (approvalsArray != null) {
+                                    for (int j = 0; j < approvalsArray.length(); j++) {
+                                        approvals.add(approvalsArray.optString(j));
+                                    }
+                                }
+
+                                // ✅ Verifică dacă userul curent a aprobat deja
+                                if (approvals.contains(currentUser)) {
+                                    Log.d("PENDING_CHECK", "User " + currentUser + " already approved request for " + requestedUser);
+                                    continue;
+                                }
+
+                                // ✅ Create unique key to avoid duplicate prompts
                                 String requestKey = folderId + "_" + requestedUser;
 
-                                // ✅ Only show dialog if not already processed
                                 if (!checkedPendingRequests.containsKey(requestKey)) {
                                     checkedPendingRequests.put(requestKey, new ArrayList<>());
                                     Log.d("PENDING_APPROVAL", "Showing approval dialog for: " + requestedUser + " in folder: " + folderName);
@@ -631,7 +646,7 @@ public class SharedFoldersActivity extends AppCompatActivity {
         }
     }
 
-    // ✅ FIXED: Enhanced approval dialog with request tracking
+
     private void showApprovalDialog(String folderId, String folderName, String requestedUser, String currentUser, String requestKey) {
         runOnUiThread(() -> {
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -641,11 +656,11 @@ public class SharedFoldersActivity extends AppCompatActivity {
                         Log.d("APPROVAL", "User " + currentUser + " approved " + requestedUser + " for folder " + folderId);
                         approveUserRequest(folderId, requestedUser, currentUser, requestKey);
                     })
-                    .setNegativeButton("❌ Deny", (dialog, which) -> {
+                    .setNegativeButton("Deny", (dialog, which) -> {
                         Log.d("APPROVAL", "User " + currentUser + " denied " + requestedUser + " for folder " + folderId);
-                        // ✅ Mark as processed even if denied
+                        rejectJoinRequestOnServer(folderId, requestedUser);
                         checkedPendingRequests.put(requestKey, List.of("DENIED"));
-                        Toast.makeText(this, "❌ Request denied", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Request denied", Toast.LENGTH_SHORT).show();
                     })
                     .setCancelable(false)
                     .show();
@@ -686,5 +701,18 @@ public class SharedFoldersActivity extends AppCompatActivity {
 
         Volley.newRequestQueue(this).add(request);
     }
+
+
+    private void rejectJoinRequestOnServer(String folderId, String requestedUser) {
+        String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/rejectRequest/" + requestedUser;
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.DELETE, url, null,
+                response -> Log.d("REJECT_REQUEST", "Successfully rejected: " + requestedUser),
+                error -> Log.e("REJECT_REQUEST", "Error rejecting request: " + error.toString())
+        );
+
+        Volley.newRequestQueue(this).add(request);
+    }
+
 
 }

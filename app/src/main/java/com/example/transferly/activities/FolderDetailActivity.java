@@ -831,23 +831,39 @@ public class FolderDetailActivity extends AppCompatActivity {
 
             JSONObject body = new JSONObject();
             body.put("member", friendUsername);
+            body.put("requester", currentUser); // ✅ Adaugă requester
+
+            System.out.println("📤 Sending add member request:");
+            System.out.println("   Member: " + friendUsername);
+            System.out.println("   Requester: " + currentUser);
+            System.out.println("   Folder: " + folderId);
 
             JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, body,
                     response -> {
+                        System.out.println("✅ Server response: " + response.toString());
                         Toast.makeText(this, "⏳ Request sent! Awaiting approvals.", Toast.LENGTH_SHORT).show();
                     },
                     error -> {
-                        Log.e("ADD_MEMBER", "Failed to request add " + friendUsername, error);
+                        System.err.println("❌ Failed to request add " + friendUsername + ": " + error.toString());
+                        if (error.networkResponse != null) {
+                            System.err.println("Response code: " + error.networkResponse.statusCode);
+                            try {
+                                String errorBody = new String(error.networkResponse.data, "UTF-8");
+                                System.err.println("Error body: " + errorBody);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
                         Toast.makeText(this, "❌ Failed to send request", Toast.LENGTH_SHORT).show();
                     });
 
             Volley.newRequestQueue(this).add(request);
         } catch (Exception e) {
-            Log.e("ADD_MEMBER", "Exception while requesting add " + friendUsername, e);
+            System.err.println("❌ Exception while requesting add " + friendUsername + ": " + e.getMessage());
+            e.printStackTrace();
             Toast.makeText(this, "Error adding friend", Toast.LENGTH_SHORT).show();
         }
     }
-
 
 
 

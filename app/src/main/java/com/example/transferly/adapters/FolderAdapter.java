@@ -24,7 +24,6 @@ public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.FolderView
     private final OnFolderLongClickListener longClickListener;
     private final OnStartDragListener dragListener;
 
-
     public interface OnFolderClickListener {
         void onFolderClick(String folderName);
     }
@@ -33,12 +32,15 @@ public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.FolderView
         void onFolderLongClick(String folderName);
     }
 
+    // ✅ Interfața corectată - nume consistent
+    public interface OnStartDragListener {
+        void onStartDrag(RecyclerView.ViewHolder viewHolder);
+    }
+
     public List<String> getFolders() {
         return folders;
     }
 
-
-    // Constructor complet
     public FolderAdapter(Context context, List<String> folders, List<String> selectedFolders,
                          OnFolderClickListener clickListener, OnFolderLongClickListener longClickListener,
                          OnStartDragListener dragListener) {
@@ -49,7 +51,6 @@ public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.FolderView
         this.longClickListener = longClickListener;
         this.dragListener = dragListener;
     }
-
 
     @NonNull
     @Override
@@ -62,31 +63,32 @@ public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.FolderView
     public void onBindViewHolder(@NonNull FolderViewHolder holder, int position) {
         String folderName = folders.get(position);
 
-        // Set iconita folderului
         holder.folderIcon.setImageResource(R.drawable.ic_folder);
         holder.folderName.setText(folderName);
 
-        // Afisez cerculetul dc folderul este selectat
+        // Afisez cerculetul daca folderul este selectat
         holder.selectCircle.setVisibility(selectedFolders.contains(folderName) ? View.VISIBLE : View.GONE);
 
         // Click pe folder
-        holder.itemView.setOnClickListener(v -> clickListener.onFolderClick(folderName));
-
-        // Apăsare lungă pe folder
-//        holder.itemView.setOnLongClickListener(v -> {
-//            longClickListener.onFolderLongClick(folderName);
-//            return true;
-//        });
-
-        holder.itemView.setOnLongClickListener(v -> {
-            if (dragListener != null) {
-                dragListener.requestDrag(holder);
+        holder.itemView.setOnClickListener(v -> {
+            if (clickListener != null) {
+                clickListener.onFolderClick(folderName);
             }
-            return true;
         });
 
-
-
+        // ✅ Long click pentru drag - implementare îmbunătățită
+        holder.itemView.setOnLongClickListener(v -> {
+            if (dragListener != null) {
+                dragListener.onStartDrag(holder);
+                return true;
+            }
+            // Fallback la long click listener dacă nu e drag
+            if (longClickListener != null) {
+                longClickListener.onFolderLongClick(folderName);
+                return true;
+            }
+            return false;
+        });
     }
 
     @Override
@@ -105,9 +107,4 @@ public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.FolderView
             folderName = itemView.findViewById(R.id.folderName);
         }
     }
-
-    public interface OnStartDragListener {
-        void requestDrag(RecyclerView.ViewHolder viewHolder);
-    }
-
 }

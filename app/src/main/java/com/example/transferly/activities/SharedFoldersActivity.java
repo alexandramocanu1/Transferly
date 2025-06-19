@@ -34,6 +34,7 @@ import com.example.transferly.R;
 import com.example.transferly.adapters.FolderAdapter;
 import com.example.transferly.adapters.FriendSelectAdapter;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -166,20 +167,27 @@ public class SharedFoldersActivity extends AppCompatActivity {
             if (name != null) displayFolders.add(name);
         }
 
+        // ✅ Implementare corectă a OnStartDragListener
         adapter = new FolderAdapter(this, displayFolders, selectedFolders,
-                this::onFolderClick, this::onFolderLongClick,
-                viewHolder -> touchHelper.startDrag(viewHolder)
+                this::onFolderClick,
+                this::onFolderLongClick,
+                viewHolder -> {
+                    // ✅ Nume consistent cu interfața
+                    touchHelper.startDrag(viewHolder);
+                }
         );
 
         foldersRecyclerView.setAdapter(adapter);
         updateFoldersCount();
 
+        // ✅ ItemTouchHelper îmbunătățit
         touchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(
                 ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.START | ItemTouchHelper.END, 0) {
 
             @Override
             public boolean isLongPressDragEnabled() {
-                return true;
+                // ✅ Dezactivez long press automat - folosesc manual trigger
+                return false;
             }
 
             @Override
@@ -188,26 +196,47 @@ public class SharedFoldersActivity extends AppCompatActivity {
                                   @NonNull RecyclerView.ViewHolder target) {
                 int from = viewHolder.getAdapterPosition();
                 int to = target.getAdapterPosition();
+
+                // ✅ Validare poziții
+                if (from < 0 || to < 0 || from >= adapter.getFolders().size() || to >= orderedFolderIds.size()) {
+                    return false;
+                }
+
+                // ✅ Swap în ambele liste
                 Collections.swap(adapter.getFolders(), from, to);
                 Collections.swap(orderedFolderIds, from, to);
+
+                // ✅ Notificare adaptorului
                 adapter.notifyItemMoved(from, to);
-                saveMainFolders();
+
                 return true;
             }
 
             @Override
             public void onSelectedChanged(@Nullable RecyclerView.ViewHolder viewHolder, int actionState) {
                 super.onSelectedChanged(viewHolder, actionState);
+
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                    // ✅ Feedback vizual când începe drag-ul
+                    if (viewHolder != null) {
+                        viewHolder.itemView.setAlpha(0.7f);
+                        viewHolder.itemView.setScaleX(1.05f);
+                        viewHolder.itemView.setScaleY(1.05f);
+                    }
+                }
             }
 
             @Override
             public void clearView(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder) {
                 super.clearView(recyclerView, viewHolder);
-                View itemView = viewHolder.itemView;
-                int[] trashPos = new int[2];
-                trashIcon.getLocationOnScreen(trashPos);
-                int[] itemPos = new int[2];
-                itemView.getLocationOnScreen(itemPos);
+
+                // ✅ Resetez feedback vizual
+                viewHolder.itemView.setAlpha(1.0f);
+                viewHolder.itemView.setScaleX(1.0f);
+                viewHolder.itemView.setScaleY(1.0f);
+
+                // ✅ Salvez doar când se termină drag-ul
+                saveMainFolders();
             }
 
             @Override
@@ -457,7 +486,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
                     setupRecyclerView();
                     updateFoldersCount();
 
-                    // ✅ Check pending requests AFTER folders are loaded
                     checkPendingRequests();
                 },
                 error -> {
@@ -469,13 +497,14 @@ public class SharedFoldersActivity extends AppCompatActivity {
     }
 
     private void showAddSharedFolderDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        AlertDialog.Builder builder = new MaterialAlertDialogBuilder(this);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_create_shared_folder, null);
         builder.setView(dialogView);
 
         EditText folderNameInput = dialogView.findViewById(R.id.folderNameInput);
         RecyclerView friendsRecyclerView = dialogView.findViewById(R.id.friendsRecyclerView);
-        friendsRecyclerView.setLayoutManager(new GridLayoutManager(this, 1));
+        TextView selectedCountText = dialogView.findViewById(R.id.selectedFriendsCount); // adaugă această linie
+        friendsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         getMyFriends(allFriends -> {
             List<String> selectedFriends = new ArrayList<>();
@@ -486,6 +515,11 @@ public class SharedFoldersActivity extends AppCompatActivity {
                 } else {
                     selectedFriends.add(friendUsername);
                 }
+
+                // 🔄 Update UI count text
+                runOnUiThread(() ->
+                        selectedCountText.setText(selectedFriends.size() + " selected")
+                );
             });
 
             friendsRecyclerView.setAdapter(adapter);
@@ -497,15 +531,14 @@ public class SharedFoldersActivity extends AppCompatActivity {
                             Toast.makeText(this, "Folder name cannot be empty", Toast.LENGTH_SHORT).show();
                             return;
                         }
-
-                        Log.d("SHARED_FOLDER_CREATE", "Selected friends: " + selectedFriends);
                         createSharedFolderOnServer(folderName, selectedFriends);
                     })
-                    .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-
-            builder.show();
+                    .setNegativeButton("Cancel", null)
+                    .show();
         });
     }
+
+
 
     private void getMyFriends(Consumer<List<String>> callback) {
         SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
@@ -611,7 +644,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
                                 String folderName = folderNames.get(folderId);
                                 JSONArray approvalsArray = requestObj.optJSONArray("approvals");
 
-                                // ✅ Extrage aprobările existente
                                 List<String> approvals = new ArrayList<>();
                                 if (approvalsArray != null) {
                                     for (int j = 0; j < approvalsArray.length(); j++) {
@@ -619,7 +651,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
                                     }
                                 }
 
-                                // ✅ Verifică dacă userul curent a aprobat deja
                                 if (approvals.contains(currentUser)) {
                                     Log.d("PENDING_CHECK", "User " + currentUser + " already approved request for " + requestedUser);
                                     continue;

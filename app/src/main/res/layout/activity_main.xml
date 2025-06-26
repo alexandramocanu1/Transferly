@@ -9,7 +9,7 @@
     android:background="@drawable/background_gradient"
     android:padding="24dp">
 
-    <!-- Guideline pentru plasare la 70% din înălțime -->
+    <!-- Guideline pentru plasare la 55% din înălțime -->
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/buttonGuide"
         android:layout_width="wrap_content"
@@ -17,63 +17,90 @@
         android:orientation="horizontal"
         app:layout_constraintGuide_percent="0.55" />
 
-    <!-- Icon / Logo opțional -->
-    <ImageView
-        android:id="@+id/appIcon"
-        android:layout_width="96dp"
-        android:layout_height="96dp"
-        android:src="@drawable/ic_launcher_foreground"
-        android:contentDescription="@string/app_name"
-        android:layout_marginTop="48dp"
+    <!-- Logo Text Modern -->
+    <TextView
+        android:id="@+id/appLogo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Transferly"
+        android:textSize="48sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:fontFamily="sans-serif-medium"
+        android:letterSpacing="0.05"
+        android:gravity="center"
+        android:layout_marginTop="80dp"
+        android:elevation="4dp"
         app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Subtitlu modern -->
+    <TextView
+        android:id="@+id/subtitleTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="16sp"
+        android:textColor="@android:color/white"
+        android:alpha="0.8"
+        android:fontFamily="sans-serif-light"
+        android:gravity="center"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/appLogo"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Text Welcome -->
     <TextView
         android:id="@+id/welcomeTextView"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="@string/welcome_message"
-        android:textSize="24sp"
-        android:textStyle="bold"
+        android:textSize="20sp"
+        android:textStyle="normal"
         android:textColor="@android:color/white"
+        android:fontFamily="sans-serif"
         android:gravity="center"
-        android:layout_marginTop="24dp"
-        app:layout_constraintTop_toBottomOf="@id/appIcon"
+        android:layout_marginTop="40dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:alpha="0.9"
+        app:layout_constraintTop_toBottomOf="@id/subtitleTextView"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Buton Login -->
-
-    <!-- Buton Register -->
-
+    <!-- Buton Login Modern -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnLogin"
         style="@style/Widget.Material3.Button"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_height="56dp"
+        android:layout_marginTop="32dp"
         android:onClick="openLoginActivity"
         android:text="@string/login_button"
-        app:cornerRadius="16dp"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:elevation="8dp"
+        app:cornerRadius="28dp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/welcomeTextView"
         app:layout_constraintTop_toTopOf="@id/buttonGuide" />
 
+    <!-- Buton Register Modern -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnRegister"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        app:layout_constraintTop_toBottomOf="@id/btnLogin"
-        android:text="@string/register_button"
-        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_height="56dp"
         android:layout_marginTop="16dp"
-        app:cornerRadius="16dp"
+        android:text="@string/register_button"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        app:cornerRadius="28dp"
+        app:strokeWidth="2dp"
         android:onClick="openRegisterActivity"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btnLogin" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

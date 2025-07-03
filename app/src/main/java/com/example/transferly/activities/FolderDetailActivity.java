@@ -2,12 +2,14 @@ package com.example.transferly.activities;
 
 import static android.content.ContentValues.TAG;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -29,7 +31,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.android.volley.Request;
+//import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
@@ -46,11 +48,17 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import org.apache.commons.net.ftp.FTP;
+//import org.apache.commons.net.ftp.FTPClient;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -60,6 +68,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.Request;
+
+
 
 public class FolderDetailActivity extends AppCompatActivity {
 
@@ -95,7 +112,6 @@ public class FolderDetailActivity extends AppCompatActivity {
     // Network
     private RequestQueue requestQueue;
 
-    // Activity Result Launchers
     private ActivityResultLauncher<Intent> fullScreenLauncher;
     private final ActivityResultLauncher<Intent> galleryLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -106,6 +122,7 @@ public class FolderDetailActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_folder_detail);
+
 
         initializeVariables();
         initializeViews();
@@ -183,22 +200,18 @@ public class FolderDetailActivity extends AppCompatActivity {
         fetchAndDisplayFolderMembers();
     }
 
+
     private void loadInitialData() {
-        // Load cached data first
+        // Load cached data first for immediate display
         if (folderName != null) {
             loadFolderData(folderName);
+            updateUI();
         }
 
-        // Check if we need to fetch from server
-        SharedPreferences sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        if (!sharedPreferences.contains(KEY_IMAGES_PREFIX + folderId)) {
-            fetchFilesForSharedFolder(folderId);
-        } else {
-            Log.d(TAG, "Using cached images for folder: " + folderId);
-        }
-
-        updateUI();
+        fetchFilesForSharedFolder(folderId);
     }
+
+
 
     private void handleGalleryResult(int resultCode, Intent data) {
         if (resultCode != RESULT_OK || data == null) {
@@ -209,25 +222,268 @@ public class FolderDetailActivity extends AppCompatActivity {
         List<String> newImages = new ArrayList<>();
 
         if (data.getClipData() != null) {
-            // Multiple images selected
             int count = data.getClipData().getItemCount();
             for (int i = 0; i < count; i++) {
                 Uri imageUri = data.getClipData().getItemAt(i).getUri();
                 newImages.add(imageUri.toString());
             }
         } else if (data.getData() != null) {
-            // Single image selected
-            Uri imageUri = data.getData();
-            newImages.add(imageUri.toString());
+            newImages.add(data.getData().toString());
         }
 
-        if (!newImages.isEmpty()) {
-            otherImages.addAll(newImages);
-            saveFolderData(folderName);
-            updateUI();
-            Toast.makeText(this, "Added " + newImages.size() + " image(s)", Toast.LENGTH_SHORT).show();
+        if (newImages.isEmpty()) return;
+
+        Toast.makeText(this, "Uploading " + newImages.size() + " image(s)...", Toast.LENGTH_SHORT).show();
+
+        // ✅ Extrage subfolderul relativ (fără numele folderului principal)
+        final String subfolder;
+        if (folderName != null && folderName.contains("/")) {
+            subfolder = folderName.substring(folderName.indexOf("/") + 1);
+        } else {
+            subfolder = null;  // folder principal
+        }
+
+        final String ftpFolder = "shared_" + folderId;
+        final String currentFolderName = folderName;
+
+        new Thread(() -> {
+            int successCount = 0;
+            List<String> successfulUploads = new ArrayList<>();
+            StringBuilder errorLog = new StringBuilder();
+
+            for (String imageUriStr : newImages) {
+                try {
+                    Uri imageUri = Uri.parse(imageUriStr);
+                    String filePath = getFilePathFromURI(this, imageUri);
+
+                    if (filePath == null) {
+                        errorLog.append("❌ Failed to get file path for: ").append(imageUriStr).append("\n");
+                        continue;
+                    }
+
+                    Log.d(TAG, "Uploading file: " + filePath);
+
+                    String uploadedFilename = uploadToNAS(filePath, ftpFolder, subfolder);
+
+                    if (uploadedFilename != null) {
+                        Log.d(TAG, "✅ FTP upload successful: " + uploadedFilename);
+
+                        boolean registered = registerFileInBackendSync(uploadedFilename, subfolder);
+                        if (registered) {
+                            successCount++;
+                            String localPath = getFilesDir() + "/shared_" + folderId + "/" + uploadedFilename;
+                            Uri fileUri = Uri.fromFile(new File(localPath));
+                            successfulUploads.add(fileUri.toString());
+
+                            Log.d(TAG, "✅ File registered successfully: " + uploadedFilename);
+                        } else {
+                            errorLog.append("❌ Failed to register: ").append(uploadedFilename).append(" on server\n");
+                        }
+                    } else {
+                        errorLog.append("❌ FTP upload failed for: ").append(filePath).append("\n");
+                    }
+
+                } catch (Exception e) {
+                    Log.e(TAG, "Error uploading image: " + imageUriStr, e);
+                    errorLog.append("❌ Exception for: ").append(imageUriStr).append(" - ").append(e.getMessage()).append("\n");
+                }
+            }
+
+            final int finalSuccessCount = successCount;
+            final String finalErrorLog = errorLog.toString();
+
+            runOnUiThread(() -> {
+                saveFolderData(currentFolderName);
+                updateUI();
+
+                if (finalSuccessCount > 0) {
+                    Toast.makeText(this, "✅ Uploaded " + finalSuccessCount + "/" + newImages.size() + " image(s)", Toast.LENGTH_LONG).show();
+
+                    // 👉 Forțează refresh complet, ca să apară noile fișiere:
+                    fetchFilesForSharedFolder(folderId);
+                    fetchSubfolders(folderId);
+
+                } else {
+                    Toast.makeText(this, "❌ Upload failed for all images", Toast.LENGTH_LONG).show();
+                    Log.e(TAG, "Upload errors:\n" + finalErrorLog);
+                }
+
+
+                Log.d(TAG, "Upload summary - Success: " + finalSuccessCount + "/" + newImages.size());
+                if (!finalErrorLog.isEmpty()) {
+                    Log.e(TAG, "Upload errors:\n" + finalErrorLog);
+                }
+            });
+        }).start();
+    }
+
+
+
+    private boolean registerFileInBackendSync(String filename, @Nullable String subfolder) {
+        String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/file";
+
+        Log.d(TAG, "🔄 Registering file on server: " + filename);
+        Log.d(TAG, "📡 URL: " + url);
+
+        try {
+            java.net.URL urlObj = new java.net.URL(url);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) urlObj.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(10000); // 10 secunde timeout
+            conn.setReadTimeout(10000);
+
+            String jsonData = "{\"filename\":\"" + filename + "\",\"uploadedBy\":\"" + currentUser + "\"";
+
+            if (subfolder != null) {
+                jsonData += ",\"subfolder\":\"" + subfolder + "\"";
+            }
+
+            jsonData += "}";
+
+            Log.d(TAG, "📤 Sending JSON: " + jsonData);
+
+            try (java.io.OutputStream os = conn.getOutputStream()) {
+                os.write(jsonData.getBytes("UTF-8"));
+                os.flush();
+            }
+
+            int responseCode = conn.getResponseCode();
+            String responseMessage = conn.getResponseMessage();
+
+            Log.d(TAG, "📡 Server response: " + responseCode + " - " + responseMessage);
+
+            if (responseCode >= 200 && responseCode < 300) {
+                Log.d(TAG, "✅ File registered successfully: " + filename);
+                return true;
+            } else {
+                try (java.io.InputStream errorStream = conn.getErrorStream()) {
+                    if (errorStream != null) {
+                        String errorResponse = readInputStream(errorStream);
+                        Log.e(TAG, "❌ Server error response: " + errorResponse);
+                    }
+                }
+                return false;
+            }
+
+        } catch (java.net.SocketTimeoutException e) {
+            Log.e(TAG, "❌ Server timeout for file: " + filename, e);
+            return false;
+        } catch (java.net.UnknownHostException e) {
+            Log.e(TAG, "❌ Cannot reach server for file: " + filename, e);
+            return false;
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Failed to register file: " + filename, e);
+            return false;
         }
     }
+
+
+    private String readInputStream(java.io.InputStream inputStream) throws IOException {
+        StringBuilder result = new StringBuilder();
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(inputStream))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                result.append(line);
+            }
+        }
+        return result.toString();
+    }
+
+
+
+    private String getFilePathFromURI(Context context, Uri uri) {
+        Log.d(TAG, "🔄 Converting URI to file path: " + uri.toString());
+
+        try {
+            String fileName = "temp_image_" + System.currentTimeMillis() + ".jpg";
+            File file = new File(context.getCacheDir(), fileName);
+
+            InputStream inputStream = context.getContentResolver().openInputStream(uri);
+            if (inputStream == null) {
+                Log.e(TAG, "❌ Cannot open input stream for URI: " + uri);
+                return null;
+            }
+
+            OutputStream outputStream = new FileOutputStream(file);
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            long totalBytes = 0;
+
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+                totalBytes += bytesRead;
+            }
+
+            inputStream.close();
+            outputStream.close();
+
+            Log.d(TAG, "✅ File created: " + file.getAbsolutePath());
+            Log.d(TAG, "📋 File size: " + totalBytes + " bytes");
+
+            return file.getAbsolutePath();
+
+        } catch (IOException e) {
+            Log.e(TAG, "❌ Failed to copy file from URI: " + uri, e);
+            return null;
+        }
+    }
+
+
+    private String uploadToNAS(String filePath, String ftpFolderName, @Nullable String subfolder)
+    {
+        File file = new File(filePath);
+        if (!file.exists()) {
+            Log.e(TAG, "❌ File does not exist: " + filePath);
+            return null;
+        }
+
+        try {
+            OkHttpClient client = new OkHttpClient.Builder()
+                    .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    .build();
+
+            String folderIdStr = folderId;
+
+            String url = "http://transferly.go.ro:8080/api/shared/" + folderIdStr + "/upload";
+            if (subfolder != null) {
+                url += "?subfolder=" + Uri.encode(subfolder);
+            }
+
+
+            Log.d(TAG, "🌐 Uploading to: " + url);
+
+            RequestBody requestBody = new MultipartBody.Builder()
+                    .setType(MultipartBody.FORM)
+                    .addFormDataPart("file", file.getName(),
+                            RequestBody.create(MediaType.parse("image/*"), file))
+                    .build();
+
+            Request request = new Request.Builder()
+                    .url(url)
+                    .post(requestBody)
+                    .build();
+
+            Response response = client.newCall(request).execute();
+            if (!response.isSuccessful()) {
+                Log.e(TAG, "❌ Upload failed: " + response.code() + " - " + response.message());
+                return null;
+            }
+
+            Log.d(TAG, "✅ Upload successful: " + file.getName());
+            return file.getName();  // Trebuie să se potrivească cu ceea ce trimiti în registerFileInBackendSync
+
+        } catch (Exception e) {
+            Log.e(TAG, "❌ HTTP upload exception: " + e.getMessage(), e);
+            return null;
+        }
+    }
+
+
 
     private void handleFullScreenResult(int resultCode, Intent data) {
         Log.d(TAG, "handleFullScreenResult - resultCode: " + resultCode);
@@ -280,6 +536,13 @@ public class FolderDetailActivity extends AppCompatActivity {
         int position = data.getIntExtra("position", -1);
 
         if (deletedUri != null && position >= 0 && otherImages.contains(deletedUri)) {
+            // Extract filename from URI to delete from server
+            String fileName = getFileNameFromUri(deletedUri);
+            if (fileName != null) {
+                deleteImageFromServer(fileName);
+            }
+
+            // Remove locally
             otherImages.remove(deletedUri);
             likesMap.remove(deletedUri);
             saveFolderData(folderName);
@@ -292,6 +555,95 @@ public class FolderDetailActivity extends AppCompatActivity {
             Toast.makeText(this, "Image deleted", Toast.LENGTH_SHORT).show();
         }
     }
+
+
+    private void deleteImageFromServer(String fileName) {
+        String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/files/" + fileName;
+
+        Log.d(TAG, "🌐 Deleting file from server: " + url);
+
+        new Thread(() -> {
+            OkHttpClient client = new OkHttpClient();
+
+            okhttp3.Request request = new okhttp3.Request.Builder()
+                    .url(url)
+                    .delete()
+                    .build();
+
+            try {
+                okhttp3.Response response = client.newCall(request).execute();
+                if (response.isSuccessful()) {
+                    Log.d(TAG, "✅ Successfully deleted " + fileName + " from server");
+                    runOnUiThread(this::notifyFolderUpdated);
+                } else {
+                    Log.e(TAG, "❌ Server delete failed. Code: " + response.code());
+                    runOnUiThread(() -> Toast.makeText(this, "Failed to delete from server", Toast.LENGTH_SHORT).show());
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Exception deleting file: " + fileName, e);
+                runOnUiThread(() -> Toast.makeText(this, "Error deleting file", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+
+
+    private String getFileNameFromUri(String uriString) {
+        try {
+            Uri uri = Uri.parse(uriString);
+            if ("file".equals(uri.getScheme())) {
+                String path = uri.getPath();
+                if (path != null) {
+                    return path.substring(path.lastIndexOf('/') + 1);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error extracting filename from URI: " + uriString, e);
+        }
+        return null;
+    }
+
+
+    private void notifyFolderUpdated() {
+        String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/notify-update";
+
+        Map<String, String> data = new HashMap<>();
+        data.put("updatedBy", currentUser);
+        data.put("timestamp", String.valueOf(System.currentTimeMillis()));
+
+        JSONObject json = new JSONObject(data);
+
+        OkHttpClient client = new OkHttpClient();
+
+        RequestBody requestBody = RequestBody.create(
+                json.toString(),
+                MediaType.parse("application/json; charset=utf-8")
+        );
+
+        okhttp3.Request request = new okhttp3.Request.Builder()
+                .url(url)
+                .post(requestBody)
+                .build();
+
+        new Thread(() -> {
+            try {
+                okhttp3.Response response = client.newCall(request).execute();
+                if (response.isSuccessful()) {
+                    Log.d(TAG, "✅ Folder update notification sent");
+
+                    // 👉 AICI forțăm sync pe UI thread
+                    runOnUiThread(() -> {
+                        fetchFilesForSharedFolder(folderId);
+                    });
+
+                } else {
+                    Log.e(TAG, "❌ Failed to notify update - Code: " + response.code());
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Exception while notifying folder update", e);
+            }
+        }).start();
+    }
+
 
     private void toggleImageLike(String imageUri, int position) {
         Set<String> currentLikes = likesMap.getOrDefault(imageUri, new HashSet<>());
@@ -432,6 +784,7 @@ public class FolderDetailActivity extends AppCompatActivity {
         }
     }
 
+
     private void createSubfolder() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Create Subfolder");
@@ -447,14 +800,35 @@ public class FolderDetailActivity extends AppCompatActivity {
                 return;
             }
 
-            String fullPath = folderName + "/" + subfolderName;
+            // Build the full path for the new subfolder
+            String fullPath;
+            if (folderName == null || folderName.isEmpty()) {
+                fullPath = subfolderName;
+            } else {
+                fullPath = folderName + "/" + subfolderName;
+            }
 
-            if (subfolders.contains(fullPath)) {
+            // Check if subfolder already exists
+            boolean alreadyExists = false;
+            for (String existingSubfolder : subfolders) {
+                if (existingSubfolder.equals(fullPath)) {
+                    alreadyExists = true;
+                    break;
+                }
+            }
+
+            if (alreadyExists) {
                 Toast.makeText(this, "A subfolder with this name already exists", Toast.LENGTH_SHORT).show();
             } else {
+                // Add to local list (this will be filtered properly when fetched from server)
                 subfolders.add(fullPath);
                 saveFolderData(folderName);
                 updateUI();
+
+                // Register on server
+                registerSubfolderInBackend(fullPath);
+
+                // Open the new subfolder
                 openFolder(fullPath);
             }
         });
@@ -463,17 +837,22 @@ public class FolderDetailActivity extends AppCompatActivity {
         builder.show();
     }
 
+
     private void openFolder(String targetFolderName) {
+        // ✅ Nu permite să redeschizi același folder
         if (targetFolderName.equals(folderName)) {
-            Toast.makeText(this, "Cannot open the same folder recursively", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Already in this folder", Toast.LENGTH_SHORT).show();
             return;
         }
 
+        // ✅ Deschide FolderDetailActivity cu același folderId, dar cu targetFolderName ca subfolder
         Intent intent = new Intent(this, FolderDetailActivity.class);
-        intent.putExtra("FOLDER_NAME", targetFolderName);
         intent.putExtra("FOLDER_ID", folderId);
+        intent.putExtra("FOLDER_NAME", targetFolderName);
         startActivity(intent);
+        finish();  // Închide activitatea curentă pentru a evita stocarea folderului vechi
     }
+
 
     private void toggleSubfolderSelection(String folderName) {
         if (selectedSubfolders.contains(folderName)) {
@@ -569,82 +948,258 @@ public class FolderDetailActivity extends AppCompatActivity {
                 ", Likes: " + likesMap.size());
     }
 
+
+    private String extractFileName(String uriStr) {
+        try {
+            Uri uri = Uri.parse(uriStr);
+            String path = uri.getPath();
+            if (path != null) {
+                return path.substring(path.lastIndexOf('/') + 1);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error extracting file name from URI: " + uriStr, e);
+        }
+        return uriStr;
+    }
+
+
+
+
+
     private void fetchFilesForSharedFolder(String folderId) {
         String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/files";
 
-        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
-                response -> {
-                    Log.d(TAG, "Fetched " + response.length() + " files from server");
+        if (folderName != null && folderName.contains("/")) {
+            String[] parts = folderName.split("/", 2);
+            String subfolderName = parts[1];
+            url += "?subfolder=" + Uri.encode(subfolderName);
+        }
+
+        OkHttpClient client = new OkHttpClient();
+
+        okhttp3.Request request = new okhttp3.Request.Builder()
+                .url(url)
+                .get()
+                .build();
+
+        new Thread(() -> {
+            try {
+                okhttp3.Response response = client.newCall(request).execute();
+
+                if (!response.isSuccessful()) {
+                    Log.e(TAG, "❌ Failed to fetch files. Code: " + response.code());
+                    return;
+                }
+
+                String responseBody = response.body().string();
+                JSONArray jsonArray = new JSONArray(responseBody);
+
+                Log.d(TAG, "Fetched " + jsonArray.length() + " files from server");
+
+                List<String> serverImages = new ArrayList<>();
+
+//                for (int i = 0; i < jsonArray.length(); i++) {
+//                    String entry = jsonArray.optString(i);
+//                    if (entry == null || entry.trim().isEmpty()) continue;
+//
+//                    String fileName = entry.substring(entry.lastIndexOf('/') + 1);
+//                    File localFile = new File(getFilesDir() + "/shared_" + folderId, fileName);
+//
+//                    if (localFile.exists()) {
+//                        String localUri = Uri.fromFile(localFile).toString();
+//                        serverImages.add(localUri);
+//                    } else {
+//                        downloadAndSaveImage(entry, folderId, serverImages);
+//                    }
+//                }
+
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    String entry = jsonArray.optString(i);
+                    if (entry == null || entry.trim().isEmpty()) continue;
+
+                    if (entry.startsWith("folder:")) {
+                        String subfolderName = entry.substring("folder:".length());
+                        subfolders.add(subfolderName);
+                        continue;
+                    }
+
+                    downloadAndSaveImage(entry, folderId, serverImages);
+                }
+
+
+                runOnUiThread(() -> {
                     otherImages.clear();
-
-                    for (int i = 0; i < response.length(); i++) {
-                        String fileUrl = response.optString(i);
-                        if (fileUrl != null && !fileUrl.trim().isEmpty()) {
-                            downloadAndSaveImage(fileUrl, folderId);
-                        }
-                    }
-                },
-                error -> {
-                    Log.e(TAG, "Failed to fetch files", error);
-                    Toast.makeText(this, "Failed to load shared files", Toast.LENGTH_SHORT).show();
+                    otherImages.addAll(serverImages);
+                    updateUI();
+                    saveFolderData(folderName);
                 });
 
-        requestQueue.add(request);
+                // După ce a luat fișierele, face request separat la /subfolders:
+                fetchSubfolders(folderId);
+
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Exception fetching files", e);
+            }
+        }).start();
     }
 
-    private void downloadAndSaveImage(String imageUrl, String folderId) {
-        Glide.with(this)
-                .asBitmap()
-                .load(imageUrl)
-                .into(new CustomTarget<Bitmap>() {
-                    @Override
-                    public void onResourceReady(@NonNull Bitmap resource, @Nullable Transition<? super Bitmap> transition) {
-                        try {
-                            File dir = new File(getFilesDir(), "shared_" + folderId);
-                            if (!dir.exists()) {
-                                boolean created = dir.mkdirs();
-                                Log.d(TAG, "Created directory: " + created);
-                            }
 
-                            String fileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
-                            File imageFile = new File(dir, fileName);
 
-                            try (FileOutputStream outputStream = new FileOutputStream(imageFile)) {
-                                resource.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
-                            }
+    private void fetchSubfolders(String folderId) {
+        String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/subfolders";
+        OkHttpClient client = new OkHttpClient();
 
-                            String localUri = Uri.fromFile(imageFile).toString();
-                            otherImages.add(localUri);
+        okhttp3.Request request = new okhttp3.Request.Builder()
+                .url(url)
+                .get()
+                .build();
 
-                            runOnUiThread(() -> {
-                                updateUI();
-                                saveFolderData(folderName);
-                            });
+        new Thread(() -> {
+            try {
+                okhttp3.Response response = client.newCall(request).execute();
 
-                            // Delete from server after successful download
-                            deleteFileFromNAS(folderId, fileName);
+                if (!response.isSuccessful()) {
+                    Log.e(TAG, "❌ Failed to fetch subfolders. Code: " + response.code());
+                    return;
+                }
 
-                        } catch (IOException e) {
-                            Log.e(TAG, "Error saving image", e);
-                        }
-                    }
+                String responseBody = response.body().string();
+                JSONArray jsonArray = new JSONArray(responseBody);
 
-                    @Override
-                    public void onLoadCleared(@Nullable Drawable placeholder) {
-                        // No action needed
-                    }
+                List<String> serverSubfolders = new ArrayList<>();
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    serverSubfolders.add(jsonArray.getString(i));
+                }
+
+                // Filter subfolders to show only direct children of current folder
+                List<String> filteredSubfolders = filterSubfoldersForCurrentLevel(serverSubfolders);
+
+                runOnUiThread(() -> {
+                    Set<String> uniqueSubfolders = new HashSet<>(subfolders);
+                    uniqueSubfolders.addAll(filteredSubfolders);
+                    subfolders.clear();
+                    subfolders.addAll(uniqueSubfolders);
+
+//                    subfolders.addAll(filteredSubfolders);
+                    updateUI();
+                    saveFolderData(folderName);
                 });
+
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Exception fetching subfolders", e);
+            }
+        }).start();
     }
 
-    private void deleteFileFromNAS(String folderId, String filename) {
-        String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/files/" + filename;
+//    private List<String> filterSubfoldersForCurrentLevel(List<String> allSubfolders) {
+//        List<String> filteredSubfolders = new ArrayList<>();
+//
+//        String currentPath = folderName;
+//        if (currentPath == null || currentPath.isEmpty()) {
+//            for (String subfolder : allSubfolders) {
+//                if (!subfolder.contains("/")) {
+//                    filteredSubfolders.add(subfolder);
+//                }
+//            }
+//        } else {
+//            String currentPathWithSlash = currentPath + "/";
+//
+//            for (String subfolder : allSubfolders) {
+//                if (subfolder.startsWith(currentPathWithSlash)) {
+//                    String remainingPath = subfolder.substring(currentPathWithSlash.length());
+//
+//                    if (!remainingPath.contains("/")) {
+//                        filteredSubfolders.add(subfolder);
+//                    }
+//                }
+//            }
+//        }
+//
+//        Log.d(TAG, "Filtered subfolders for level '" + currentPath + "': " + filteredSubfolders.size() + " items");
+//        return filteredSubfolders;
+//    }
 
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.DELETE, url, null,
-                response -> Log.d(TAG, "Successfully deleted " + filename + " from NAS"),
-                error -> Log.e(TAG, "Failed to delete " + filename + " from NAS", error));
 
-        requestQueue.add(request);
+    private List<String> filterSubfoldersForCurrentLevel(List<String> allSubfolders) {
+        List<String> filteredSubfolders = new ArrayList<>();
+
+        String currentPath = folderName != null ? folderName : "";
+        String currentPathWithSlash = currentPath.isEmpty() ? "" : currentPath + "/";
+
+        for (String subfolder : allSubfolders) {
+            if (!subfolder.startsWith(currentPathWithSlash)) continue;
+
+            String remainingPath = subfolder.substring(currentPathWithSlash.length());
+
+            if (!remainingPath.contains("/")) {
+                filteredSubfolders.add(currentPathWithSlash + remainingPath);
+            }
+        }
+
+        Log.d(TAG, "Filtered subfolders for level '" + currentPath + "': " + filteredSubfolders);
+        return filteredSubfolders;
     }
+
+
+
+
+    private void downloadAndSaveImage(String imageUrl, String folderId, List<String> serverImages) {
+        new Thread(() -> {
+            OkHttpClient client = new OkHttpClient();
+            FileOutputStream outputStream = null;
+
+            try {
+                String fileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+                File dir = new File(getFilesDir(), "shared_" + folderId);
+                if (!dir.exists()) dir.mkdirs();
+
+                File imageFile = new File(dir, fileName);
+
+                okhttp3.Request request = new okhttp3.Request.Builder()
+                        .url(imageUrl)
+                        .get()
+                        .build();
+
+                okhttp3.Response response = client.newCall(request).execute();
+
+                if (!response.isSuccessful() || response.body() == null) {
+                    Log.e(TAG, "❌ Failed to download " + fileName + ": " + response.code());
+                    return;
+                }
+
+                outputStream = new FileOutputStream(imageFile);
+                outputStream.write(response.body().bytes());
+                outputStream.flush();
+
+                String localUri = Uri.fromFile(imageFile).toString();
+
+
+                serverImages.add(localUri);
+
+
+                runOnUiThread(() -> {
+                    otherImages.clear();
+                    otherImages.addAll(serverImages);
+                    updateUI();
+                    saveFolderData(folderName);
+                });
+
+
+                Log.d(TAG, "✅ Downloaded and saved: " + fileName);
+
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Error downloading file via HTTP: " + imageUrl, e);
+            } finally {
+                try {
+                    if (outputStream != null) outputStream.close();
+                } catch (IOException e) {
+                    Log.e(TAG, "Error closing output stream", e);
+                }
+            }
+        }).start();
+    }
+
+
 
     private void fetchAndDisplayFolderMembers() {
         fetchFolderMembers(folderId, members -> {
@@ -653,7 +1208,6 @@ public class FolderDetailActivity extends AppCompatActivity {
 //                folderMembersInfo.setText(text);
 //                shareInfoBar.setVisibility(View.VISIBLE);
 
-                // Show delete button only for folder owner (first member)
                 if (members.get(0).equals(currentUser)) {
                     deleteFolderBtn.setVisibility(View.VISIBLE);
                 }
@@ -682,43 +1236,88 @@ public class FolderDetailActivity extends AppCompatActivity {
     private void fetchFolderMembers(String folderId, Consumer<List<String>> callback) {
         String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/members";
 
-        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
-                response -> {
-                    List<String> members = new ArrayList<>();
-                    for (int i = 0; i < response.length(); i++) {
-                        String member = response.optString(i);
-                        if (member != null && !member.trim().isEmpty()) {
-                            members.add(member);
-                        }
+        OkHttpClient client = new OkHttpClient();
+
+        okhttp3.Request request = new okhttp3.Request.Builder()
+                .url(url)
+                .get()
+                .build();
+
+        new Thread(() -> {
+            List<String> members = new ArrayList<>();
+
+            try {
+                okhttp3.Response response = client.newCall(request).execute();
+
+                if (!response.isSuccessful()) {
+                    Log.e(TAG, "❌ Failed to fetch folder members. Code: " + response.code());
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, "Could not load members", Toast.LENGTH_SHORT).show();
+                        callback.accept(members);
+                    });
+                    return;
+                }
+
+                String responseBody = response.body().string();
+                JSONArray jsonArray = new JSONArray(responseBody);
+
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    String member = jsonArray.optString(i);
+                    if (member != null && !member.trim().isEmpty()) {
+                        members.add(member);
                     }
-                    callback.accept(members);
-                },
-                error -> {
-                    Log.e(TAG, "Failed to fetch folder members", error);
+                }
+
+                runOnUiThread(() -> callback.accept(members));
+
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Exception while fetching folder members", e);
+                runOnUiThread(() -> {
                     Toast.makeText(this, "Could not load members", Toast.LENGTH_SHORT).show();
                     callback.accept(new ArrayList<>());
                 });
-
-        requestQueue.add(request);
+            }
+        }).start();
     }
+
 
     private void deleteFolderFromServer(String folderId) {
         String url = "http://transferly.go.ro:8080/api/shared/delete/" + folderId + "?username=" + currentUser;
 
-        StringRequest request = new StringRequest(Request.Method.DELETE, url,
-                response -> {
-                    Log.d("DELETE_FOLDER", "Server response: " + response);
-                    Toast.makeText(this, "Folder deleted successfully", Toast.LENGTH_SHORT).show();
-                    finish();
-                },
-                error -> {
-                    Log.e("DELETE_FOLDER", "Error deleting folder", error);
-                    Toast.makeText(this, "❌ Failed to delete folder", Toast.LENGTH_SHORT).show();
-                });
+        OkHttpClient client = new OkHttpClient();
 
+        okhttp3.Request request = new okhttp3.Request.Builder()
+                .url(url)
+                .delete()
+                .build();
 
-        requestQueue.add(request);
+        new Thread(() -> {
+            try {
+                okhttp3.Response response = client.newCall(request).execute();
+
+                if (response.isSuccessful()) {
+                    Log.d("DELETE_FOLDER", "Server response: " + response.body().string());
+
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, "Folder deleted successfully", Toast.LENGTH_SHORT).show();
+                        finish();
+                    });
+                } else {
+                    Log.e("DELETE_FOLDER", "❌ Failed with code: " + response.code());
+                    runOnUiThread(() ->
+                            Toast.makeText(this, "❌ Failed to delete folder", Toast.LENGTH_SHORT).show()
+                    );
+                }
+
+            } catch (Exception e) {
+                Log.e("DELETE_FOLDER", "❌ Exception while deleting folder", e);
+                runOnUiThread(() ->
+                        Toast.makeText(this, "❌ Failed to delete folder", Toast.LENGTH_SHORT).show()
+                );
+            }
+        }).start();
     }
+
 
     private void showFolderMembersPopup(String folderId, List<String> currentMembers) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -779,50 +1378,99 @@ public class FolderDetailActivity extends AppCompatActivity {
     private void removeMemberFromFolder(String folderId, String username) {
         String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/removeMember";
 
+        OkHttpClient client = new OkHttpClient();
+
         try {
             JSONObject body = new JSONObject();
             body.put("member", username);
 
-            JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, body,
-                    response -> {
-                        Toast.makeText(this, "Removed " + username, Toast.LENGTH_SHORT).show();
-                        // Refresh the members list
-                        fetchAndDisplayFolderMembers();
-                    },
-                    error -> {
-                        Log.e(TAG, "Failed to remove member", error);
-                        Toast.makeText(this, "Failed to remove " + username, Toast.LENGTH_SHORT).show();
-                    });
+            RequestBody requestBody = RequestBody.create(
+                    body.toString(),
+                    MediaType.parse("application/json")
+            );
 
-            requestQueue.add(request);
+            okhttp3.Request request = new okhttp3.Request.Builder()
+                    .url(url)
+                    .post(requestBody)
+                    .build();
+
+            new Thread(() -> {
+                try {
+                    okhttp3.Response response = client.newCall(request).execute();
+
+                    if (response.isSuccessful()) {
+                        runOnUiThread(() -> {
+                            Toast.makeText(this, "Removed " + username, Toast.LENGTH_SHORT).show();
+                            fetchAndDisplayFolderMembers();
+                        });
+                    } else {
+                        Log.e(TAG, "❌ Failed to remove member. Code: " + response.code());
+                        runOnUiThread(() ->
+                                Toast.makeText(this, "Failed to remove " + username, Toast.LENGTH_SHORT).show()
+                        );
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "❌ Exception while removing member", e);
+                    runOnUiThread(() ->
+                            Toast.makeText(this, "Error removing member", Toast.LENGTH_SHORT).show()
+                    );
+                }
+            }).start();
+
         } catch (Exception e) {
-            Log.e(TAG, "Error creating remove member request", e);
+            Log.e(TAG, "❌ Error creating request JSON", e);
             Toast.makeText(this, "Error removing member", Toast.LENGTH_SHORT).show();
         }
     }
 
+
     private void getMyFriends(Consumer<List<String>> callback) {
         String url = "http://transferly.go.ro:8080/api/users/" + currentUser + "/friends";
 
-        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
-                response -> {
-                    List<String> friends = new ArrayList<>();
-                    for (int i = 0; i < response.length(); i++) {
-                        String friend = response.optString(i);
-                        if (friend != null && !friend.trim().isEmpty()) {
-                            friends.add(friend);
-                        }
+        OkHttpClient client = new OkHttpClient();
+
+        okhttp3.Request request = new okhttp3.Request.Builder()
+                .url(url)
+                .get()
+                .build();
+
+        new Thread(() -> {
+            List<String> friends = new ArrayList<>();
+
+            try {
+                okhttp3.Response response = client.newCall(request).execute();
+
+                if (!response.isSuccessful()) {
+                    Log.e(TAG, "❌ Failed to fetch friends. Code: " + response.code());
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, "Could not load friends", Toast.LENGTH_SHORT).show();
+                        callback.accept(friends);
+                    });
+                    return;
+                }
+
+                String responseBody = response.body().string();
+                JSONArray jsonArray = new JSONArray(responseBody);
+
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    String friend = jsonArray.optString(i);
+                    if (friend != null && !friend.trim().isEmpty()) {
+                        friends.add(friend);
                     }
-                    callback.accept(friends);
-                },
-                error -> {
-                    Log.e(TAG, "Failed to fetch friends", error);
+                }
+
+                runOnUiThread(() -> callback.accept(friends));
+
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Exception while fetching friends", e);
+                runOnUiThread(() -> {
                     Toast.makeText(this, "Could not load friends", Toast.LENGTH_SHORT).show();
                     callback.accept(new ArrayList<>());
                 });
-
-        requestQueue.add(request);
+            }
+        }).start();
     }
+
 
     private void addFriendToFolderOnServer(String folderId, String friendUsername) {
         try {
@@ -831,35 +1479,50 @@ public class FolderDetailActivity extends AppCompatActivity {
 
             JSONObject body = new JSONObject();
             body.put("member", friendUsername);
-            body.put("requester", currentUser); // ✅ Adaugă requester
+            body.put("requester", currentUser);
 
             System.out.println("📤 Sending add member request:");
             System.out.println("   Member: " + friendUsername);
             System.out.println("   Requester: " + currentUser);
             System.out.println("   Folder: " + folderId);
 
-            JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, body,
-                    response -> {
-                        System.out.println("✅ Server response: " + response.toString());
-                        Toast.makeText(this, "⏳ Request sent! Awaiting approvals.", Toast.LENGTH_SHORT).show();
-                    },
-                    error -> {
-                        System.err.println("❌ Failed to request add " + friendUsername + ": " + error.toString());
-                        if (error.networkResponse != null) {
-                            System.err.println("Response code: " + error.networkResponse.statusCode);
-                            try {
-                                String errorBody = new String(error.networkResponse.data, "UTF-8");
-                                System.err.println("Error body: " + errorBody);
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }
-                        Toast.makeText(this, "❌ Failed to send request", Toast.LENGTH_SHORT).show();
-                    });
+            RequestBody requestBody = RequestBody.create(
+                    body.toString(),
+                    MediaType.parse("application/json")
+            );
 
-            Volley.newRequestQueue(this).add(request);
+            OkHttpClient client = new OkHttpClient();
+
+            okhttp3.Request request = new okhttp3.Request.Builder()
+                    .url(url)
+                    .post(requestBody)
+                    .build();
+
+            new Thread(() -> {
+                try {
+                    okhttp3.Response response = client.newCall(request).execute();
+
+                    if (response.isSuccessful()) {
+                        System.out.println("✅ Server response: " + response.body().string());
+                        runOnUiThread(() ->
+                                Toast.makeText(this, "⏳ Request sent! Awaiting approvals.", Toast.LENGTH_SHORT).show());
+                    } else {
+                        System.err.println("❌ Failed to request add " + friendUsername + ": " + response.code());
+                        String errorBody = response.body() != null ? response.body().string() : "No response body";
+                        System.err.println("Error body: " + errorBody);
+                        runOnUiThread(() ->
+                                Toast.makeText(this, "❌ Failed to send request", Toast.LENGTH_SHORT).show());
+                    }
+                } catch (Exception e) {
+                    System.err.println("❌ Exception while requesting add " + friendUsername + ": " + e.getMessage());
+                    e.printStackTrace();
+                    runOnUiThread(() ->
+                            Toast.makeText(this, "Error adding friend", Toast.LENGTH_SHORT).show());
+                }
+            }).start();
+
         } catch (Exception e) {
-            System.err.println("❌ Exception while requesting add " + friendUsername + ": " + e.getMessage());
+            System.err.println("❌ Exception parsing folderId or building request: " + e.getMessage());
             e.printStackTrace();
             Toast.makeText(this, "Error adding friend", Toast.LENGTH_SHORT).show();
         }
@@ -905,15 +1568,21 @@ public class FolderDetailActivity extends AppCompatActivity {
         startActivity(Intent.createChooser(shareIntent, "Share Folder"));
     }
 
+
     @Override
     protected void onResume() {
         super.onResume();
-        // Refresh data when returning to this activity
+
         if (folderName != null) {
             loadFolderData(folderName);
             updateUI();
         }
+
+        fetchFilesForSharedFolder(folderId);
+        fetchAndDisplayFolderMembers();
     }
+
+
 
     @Override
     protected void onDestroy() {
@@ -923,66 +1592,45 @@ public class FolderDetailActivity extends AppCompatActivity {
         }
     }
 
-    // Helper method to check if current user is folder owner
-    private boolean isCurrentUserOwner(List<String> members) {
-        return members != null && !members.isEmpty() && members.get(0).equals(currentUser);
-    }
 
-    // Helper method to format member count text
-    private String formatMemberText(List<String> members) {
-        if (members == null || members.isEmpty()) {
-            return "Private folder";
-        }
+    private void registerSubfolderInBackend(String subfolderName) {
+        String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/subfolder";
 
-        int count = members.size();
-        if (count == 1) {
-            return "Private folder";
-        } else if (count == 2) {
-            return "Shared with 1 person";
-        } else {
-            return "Shared with " + (count - 1) + " people";
-        }
-    }
+        OkHttpClient client = new OkHttpClient();
 
-    // Method to handle network connectivity issues
-    private void handleNetworkError(String operation) {
-        String message = "Network error during " + operation + ". Please check your connection.";
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
-        Log.e(TAG, message);
-    }
-
-    // Method to validate image URI before processing
-    private boolean isValidImageUri(String uriString) {
-        if (uriString == null || uriString.trim().isEmpty()) {
-            return false;
-        }
-
+        JSONObject json = new JSONObject();
         try {
-            Uri uri = Uri.parse(uriString);
-            return uri != null && (uri.getScheme() != null);
+            json.put("name", subfolderName);
+            json.put("createdBy", currentUser);
         } catch (Exception e) {
-            Log.e(TAG, "Invalid URI: " + uriString, e);
-            return false;
+            Log.e(TAG, "❌ Error building subfolder JSON", e);
+            return;
         }
-    }
 
-    // Method to clean up temporary files
-    private void cleanupTempFiles() {
-        try {
-            File tempDir = new File(getCacheDir(), "temp_images");
-            if (tempDir.exists() && tempDir.isDirectory()) {
-                File[] files = tempDir.listFiles();
-                if (files != null) {
-                    for (File file : files) {
-                        if (file.isFile()) {
-                            boolean deleted = file.delete();
-                            Log.d(TAG, "Deleted temp file: " + file.getName() + " - " + deleted);
-                        }
-                    }
+        RequestBody body = RequestBody.create(
+                json.toString(),
+                MediaType.parse("application/json; charset=utf-8")
+        );
+
+        okhttp3.Request request = new okhttp3.Request.Builder()
+                .url(url)
+                .post(body)
+                .build();
+
+        new Thread(() -> {
+            try {
+                okhttp3.Response response = client.newCall(request).execute();
+                if (response.isSuccessful()) {
+                    Log.d(TAG, "✅ Subfolder registered: " + subfolderName);
+                    runOnUiThread(this::notifyFolderUpdated);  // Notifică ceilalți
+                } else {
+                    Log.e(TAG, "❌ Failed to register subfolder: " + response.code());
                 }
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Error registering subfolder", e);
             }
-        } catch (Exception e) {
-            Log.e(TAG, "Error cleaning up temp files", e);
-        }
+        }).start();
     }
+
+
 }

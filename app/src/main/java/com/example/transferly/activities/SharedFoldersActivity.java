@@ -217,7 +217,6 @@ public class SharedFoldersActivity extends AppCompatActivity {
                 super.onSelectedChanged(viewHolder, actionState);
 
                 if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
-                    // ✅ Feedback vizual când începe drag-ul
                     if (viewHolder != null) {
                         viewHolder.itemView.setAlpha(0.7f);
                         viewHolder.itemView.setScaleX(1.05f);
@@ -230,12 +229,10 @@ public class SharedFoldersActivity extends AppCompatActivity {
             public void clearView(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder) {
                 super.clearView(recyclerView, viewHolder);
 
-                // ✅ Resetez feedback vizual
                 viewHolder.itemView.setAlpha(1.0f);
                 viewHolder.itemView.setScaleX(1.0f);
                 viewHolder.itemView.setScaleY(1.0f);
 
-                // ✅ Salvez doar când se termină drag-ul
                 saveMainFolders();
             }
 
@@ -252,49 +249,7 @@ public class SharedFoldersActivity extends AppCompatActivity {
         sharedFoldersTitle.setText("Shared Folders (" + folderStructure.size() + ")");
     }
 
-    private void showAddFolderDialog(String parentFolder) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Add Folder");
-        builder.setMessage("Enter the name of the folder:");
 
-        final EditText input = new EditText(this);
-        input.setHint("Folder name");
-        input.setPadding(20, 20, 20, 20);
-        builder.setView(input);
-
-        builder.setPositiveButton("Create", (dialog, which) -> {
-            String folderName = input.getText().toString().trim();
-            if (folderName.isEmpty()) {
-                Toast.makeText(this, "Folder name cannot be empty", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            String folderId = UUID.randomUUID().toString();
-            folderNames.put(folderId, folderName);
-            orderedFolderIds.add(folderId);
-
-            if (!folderStructure.containsKey(folderId)) {
-                folderStructure.put(folderId, new ArrayList<>());
-            }
-
-            if (parentFolder != null) {
-                folderStructure.putIfAbsent(parentFolder, new ArrayList<>());
-                List<String> subfolders = folderStructure.get(parentFolder);
-                if (subfolders.size() >= MAX_SUBFOLDERS) {
-                    Toast.makeText(this, "Maximum of 5 subfolders reached", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                subfolders.add(folderId);
-            }
-
-            saveMainFolders();
-            setupRecyclerView();
-            updateFoldersCount();
-        });
-
-        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-        builder.show();
-    }
 
     private void openFolder(String folderName) {
         String folderId = null;
@@ -386,7 +341,7 @@ public class SharedFoldersActivity extends AppCompatActivity {
     }
 
     private void onFolderLongClick(String folderName) {
-        // Optional: Add context menu here
+        // n am
     }
 
     private void toggleSelection(String folderName) {
@@ -456,6 +411,26 @@ public class SharedFoldersActivity extends AppCompatActivity {
 
         Volley.newRequestQueue(this).add(request);
     }
+
+    private void createSubfolderOnServer(String parentFolderId, String subfolderName) {
+        String url = "http://transferly.go.ro:8080/api/shared/" + parentFolderId + "/subfolder";
+
+        Map<String, String> body = new HashMap<>();
+        body.put("name", subfolderName);
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, new JSONObject(body),
+                response -> {
+                    Toast.makeText(this, "✅ Subfolder created!", Toast.LENGTH_SHORT).show();
+                    loadFoldersFromServer();
+                },
+                error -> {
+                    Toast.makeText(this, "❌ Failed to create subfolder", Toast.LENGTH_SHORT).show();
+                    error.printStackTrace();
+                });
+
+        Volley.newRequestQueue(this).add(request);
+    }
+
 
     private void loadFoldersFromServer() {
         folderStructure.clear();

@@ -112,6 +112,9 @@ public class FolderDetailActivity extends AppCompatActivity {
     // Network
     private RequestQueue requestQueue;
 
+    private volatile boolean isLoadingImages = false;
+    private final Object imageLock = new Object();
+
     private ActivityResultLauncher<Intent> fullScreenLauncher;
     private final ActivityResultLauncher<Intent> galleryLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -208,7 +211,10 @@ public class FolderDetailActivity extends AppCompatActivity {
             updateUI();
         }
 
-        fetchFilesForSharedFolder(folderId);
+        // ✅ Fetch fresh data doar dacă cache-ul e gol
+        if (otherImages.isEmpty()) {
+            fetchFilesForSharedFolder(folderId);
+        }
     }
 
 
@@ -665,6 +671,12 @@ public class FolderDetailActivity extends AppCompatActivity {
     }
 
     private void updateUI() {
+        // ✅ Verifică dacă e încă în loading pentru a evita update-uri premature
+        if (isLoadingImages) {
+            Log.d(TAG, "Still loading images, skipping UI update");
+            return;
+        }
+
         boolean hasContent = !likedImages.isEmpty() || !otherImages.isEmpty() ||
                 !duplicateImages.isEmpty() || !subfolders.isEmpty();
 
@@ -677,11 +689,58 @@ public class FolderDetailActivity extends AppCompatActivity {
         othersRecyclerView.setVisibility(otherImages.isEmpty() ? View.GONE : View.VISIBLE);
         duplicateRecyclerView.setVisibility(duplicateImages.isEmpty() ? View.GONE : View.VISIBLE);
 
-        // Setup RecyclerViews
+        // ✅ Setup RecyclerViews cu verificare pentru schimbări
         setupSubfoldersRecyclerView();
-        setupImageRecyclerView(likedRecyclerView, likedImages, false);
-        setupImageRecyclerView(othersRecyclerView, otherImages, true);
-        setupImageRecyclerView(duplicateRecyclerView, duplicateImages, false);
+        setupImageRecyclerViewOptimized(likedRecyclerView, likedImages, false);
+        setupImageRecyclerViewOptimized(othersRecyclerView, otherImages, true);
+        setupImageRecyclerViewOptimized(duplicateRecyclerView, duplicateImages, false);
+    }
+
+
+    private void setupImageRecyclerViewOptimized(RecyclerView recyclerView, List<String> images, boolean isOthersRecycler) {
+        if (images.isEmpty()) return;
+
+        // ✅ Verifică dacă adapter-ul există și are aceleași date
+        if (recyclerView.getAdapter() instanceof FolderImageAdapter) {
+            FolderImageAdapter existingAdapter = (FolderImageAdapter) recyclerView.getAdapter();
+            // Doar actualizează datele fără să recreezi adapter-ul
+            existingAdapter.updateImages(convertToUris(images));
+            return;
+        }
+
+        // Creează adapter nou doar dacă e necesar
+        recyclerView.setLayoutManager(new GridLayoutManager(this, 3));
+
+        List<String> sortedImages = new ArrayList<>(images);
+        Collections.sort(sortedImages, (img1, img2) -> {
+            int likes1 = likesMap.getOrDefault(img1, new HashSet<>()).size();
+            int likes2 = likesMap.getOrDefault(img2, new HashSet<>()).size();
+            return Integer.compare(likes2, likes1);
+        });
+
+        List<Uri> imageUris = convertToUris(sortedImages);
+
+        FolderImageAdapter adapter = new FolderImageAdapter(
+                this,
+                imageUris,
+                createImageActionListener(sortedImages),
+                fullScreenLauncher,
+                likesMap
+        );
+
+        recyclerView.setAdapter(adapter);
+
+        if (isOthersRecycler) {
+            othersAdapter = adapter;
+        }
+    }
+
+    private List<Uri> convertToUris(List<String> paths) {
+        List<Uri> uris = new ArrayList<>();
+        for (String path : paths) {
+            uris.add(Uri.parse(path));
+        }
+        return uris;
     }
 
     private void setupSubfoldersRecyclerView() {
@@ -967,6 +1026,16 @@ public class FolderDetailActivity extends AppCompatActivity {
 
 
     private void fetchFilesForSharedFolder(String folderId) {
+        if (isLoadingImages) {
+            Log.d(TAG, "Already loading images, skipping duplicate request");
+            return;
+        }
+
+        synchronized (imageLock) {
+            if (isLoadingImages) return;
+            isLoadingImages = true;
+        }
+
         String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/files";
 
         if (folderName != null && folderName.contains("/")) {
@@ -976,7 +1045,6 @@ public class FolderDetailActivity extends AppCompatActivity {
         }
 
         OkHttpClient client = new OkHttpClient();
-
         okhttp3.Request request = new okhttp3.Request.Builder()
                 .url(url)
                 .get()
@@ -996,22 +1064,12 @@ public class FolderDetailActivity extends AppCompatActivity {
 
                 Log.d(TAG, "Fetched " + jsonArray.length() + " files from server");
 
+                // ✅ Folosește o listă temporară pentru a evita modificări concurente
                 List<String> serverImages = new ArrayList<>();
+                List<String> serverSubfolders = new ArrayList<>();
 
-//                for (int i = 0; i < jsonArray.length(); i++) {
-//                    String entry = jsonArray.optString(i);
-//                    if (entry == null || entry.trim().isEmpty()) continue;
-//
-//                    String fileName = entry.substring(entry.lastIndexOf('/') + 1);
-//                    File localFile = new File(getFilesDir() + "/shared_" + folderId, fileName);
-//
-//                    if (localFile.exists()) {
-//                        String localUri = Uri.fromFile(localFile).toString();
-//                        serverImages.add(localUri);
-//                    } else {
-//                        downloadAndSaveImage(entry, folderId, serverImages);
-//                    }
-//                }
+                // ✅ Procesează toate fișierele într-un batch
+                List<String> filesToDownload = new ArrayList<>();
 
                 for (int i = 0; i < jsonArray.length(); i++) {
                     String entry = jsonArray.optString(i);
@@ -1019,28 +1077,109 @@ public class FolderDetailActivity extends AppCompatActivity {
 
                     if (entry.startsWith("folder:")) {
                         String subfolderName = entry.substring("folder:".length());
-                        subfolders.add(subfolderName);
+                        serverSubfolders.add(subfolderName);
                         continue;
                     }
 
-                    downloadAndSaveImage(entry, folderId, serverImages);
+                    // Verifică dacă fișierul există local
+                    String fileName = entry.substring(entry.lastIndexOf('/') + 1);
+                    File localFile = new File(getFilesDir() + "/shared_" + folderId, fileName);
+
+                    if (localFile.exists()) {
+                        String localUri = Uri.fromFile(localFile).toString();
+                        serverImages.add(localUri);
+                    } else {
+                        filesToDownload.add(entry);
+                    }
                 }
 
+                // ✅ Download fișierele lipsă în batch
+                if (!filesToDownload.isEmpty()) {
+                    downloadFilesBatch(filesToDownload, folderId, serverImages);
+                }
 
+                // ✅ Update UI-ul o singură dată, nu pentru fiecare fișier
                 runOnUiThread(() -> {
-                    otherImages.clear();
-                    otherImages.addAll(serverImages);
-                    updateUI();
-                    saveFolderData(folderName);
+                    synchronized (imageLock) {
+                        otherImages.clear();
+                        otherImages.addAll(serverImages);
+
+                        // Update subfolders doar dacă sunt diferite
+                        if (!serverSubfolders.equals(subfolders)) {
+                            subfolders.clear();
+                            subfolders.addAll(serverSubfolders);
+                        }
+
+                        updateUI();
+                        saveFolderData(folderName);
+                        isLoadingImages = false;
+                    }
                 });
 
-                // După ce a luat fișierele, face request separat la /subfolders:
+                // Fetch subfolders separat, fără să afecteze imaginile
                 fetchSubfolders(folderId);
 
             } catch (Exception e) {
                 Log.e(TAG, "❌ Exception fetching files", e);
+                synchronized (imageLock) {
+                    isLoadingImages = false;
+                }
             }
         }).start();
+    }
+
+
+    private void downloadFilesBatch(List<String> filesToDownload, String folderId, List<String> targetList) {
+        for (String imageUrl : filesToDownload) {
+            downloadSingleImage(imageUrl, folderId, targetList);
+        }
+    }
+
+    private void downloadSingleImage(String imageUrl, String folderId, List<String> targetList) {
+        OkHttpClient client = new OkHttpClient();
+        FileOutputStream outputStream = null;
+
+        try {
+            String fileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+            File dir = new File(getFilesDir(), "shared_" + folderId);
+            if (!dir.exists()) dir.mkdirs();
+
+            File imageFile = new File(dir, fileName);
+
+            okhttp3.Request request = new okhttp3.Request.Builder()
+                    .url(imageUrl)
+                    .get()
+                    .build();
+
+            okhttp3.Response response = client.newCall(request).execute();
+
+            if (!response.isSuccessful() || response.body() == null) {
+                Log.e(TAG, "❌ Failed to download " + fileName + ": " + response.code());
+                return;
+            }
+
+            outputStream = new FileOutputStream(imageFile);
+            outputStream.write(response.body().bytes());
+            outputStream.flush();
+
+            String localUri = Uri.fromFile(imageFile).toString();
+
+            // ✅ Thread-safe add la listă
+            synchronized (imageLock) {
+                targetList.add(localUri);
+            }
+
+            Log.d(TAG, "✅ Downloaded: " + fileName);
+
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Error downloading file: " + imageUrl, e);
+        } finally {
+            try {
+                if (outputStream != null) outputStream.close();
+            } catch (IOException e) {
+                Log.e(TAG, "Error closing output stream", e);
+            }
+        }
     }
 
 
@@ -1578,8 +1717,11 @@ public class FolderDetailActivity extends AppCompatActivity {
             updateUI();
         }
 
-        fetchFilesForSharedFolder(folderId);
-        fetchAndDisplayFolderMembers();
+        // ✅ Doar dacă nu se încarcă deja
+        if (!isLoadingImages) {
+            fetchFilesForSharedFolder(folderId);
+            fetchAndDisplayFolderMembers();
+        }
     }
 
 

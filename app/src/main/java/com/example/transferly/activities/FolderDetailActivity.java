@@ -211,7 +211,7 @@ public class FolderDetailActivity extends AppCompatActivity {
             updateUI();
         }
 
-        // ✅ Fetch fresh data doar dacă cache-ul e gol
+        //   Fetch fresh data doar dacă cache-ul e gol
         if (otherImages.isEmpty()) {
             fetchFilesForSharedFolder(folderId);
         }
@@ -241,12 +241,11 @@ public class FolderDetailActivity extends AppCompatActivity {
 
         Toast.makeText(this, "Uploading " + newImages.size() + " image(s)...", Toast.LENGTH_SHORT).show();
 
-        // ✅ Extrage subfolderul relativ (fără numele folderului principal)
         final String subfolder;
         if (folderName != null && folderName.contains("/")) {
             subfolder = folderName.substring(folderName.indexOf("/") + 1);
         } else {
-            subfolder = null;  // folder principal
+            subfolder = null;
         }
 
         final String ftpFolder = "shared_" + folderId;
@@ -254,7 +253,6 @@ public class FolderDetailActivity extends AppCompatActivity {
 
         new Thread(() -> {
             int successCount = 0;
-            List<String> successfulUploads = new ArrayList<>();
             StringBuilder errorLog = new StringBuilder();
 
             for (String imageUriStr : newImages) {
@@ -277,10 +275,6 @@ public class FolderDetailActivity extends AppCompatActivity {
                         boolean registered = registerFileInBackendSync(uploadedFilename, subfolder);
                         if (registered) {
                             successCount++;
-                            String localPath = getFilesDir() + "/shared_" + folderId + "/" + uploadedFilename;
-                            Uri fileUri = Uri.fromFile(new File(localPath));
-                            successfulUploads.add(fileUri.toString());
-
                             Log.d(TAG, "✅ File registered successfully: " + uploadedFilename);
                         } else {
                             errorLog.append("❌ Failed to register: ").append(uploadedFilename).append(" on server\n");
@@ -299,21 +293,30 @@ public class FolderDetailActivity extends AppCompatActivity {
             final String finalErrorLog = errorLog.toString();
 
             runOnUiThread(() -> {
-                saveFolderData(currentFolderName);
-                updateUI();
-
                 if (finalSuccessCount > 0) {
                     Toast.makeText(this, "✅ Uploaded " + finalSuccessCount + "/" + newImages.size() + " image(s)", Toast.LENGTH_LONG).show();
 
-                    // 👉 Forțează refresh complet, ca să apară noile fișiere:
-                    fetchFilesForSharedFolder(folderId);
-                    fetchSubfolders(folderId);
+                    // ✅ Forțează refresh complet prin resetare cache și re-fetch
+                    Log.d(TAG, "🔄 Forcing complete refresh after upload...");
+
+                    // Reset loading flag pentru a permite refresh
+                    synchronized (imageLock) {
+                        isLoadingImages = false;
+                    }
+
+                    // Șterge cache-ul local pentru a forța re-download
+                    otherImages.clear();
+                    updateUI();
+
+                    // Așteaptă 500ms și apoi refresh
+                    new Handler().postDelayed(() -> {
+                        fetchFilesForSharedFolder(folderId);
+                    }, 500);
 
                 } else {
                     Toast.makeText(this, "❌ Upload failed for all images", Toast.LENGTH_LONG).show();
                     Log.e(TAG, "Upload errors:\n" + finalErrorLog);
                 }
-
 
                 Log.d(TAG, "Upload summary - Success: " + finalSuccessCount + "/" + newImages.size());
                 if (!finalErrorLog.isEmpty()) {
@@ -321,6 +324,53 @@ public class FolderDetailActivity extends AppCompatActivity {
                 }
             });
         }).start();
+    }
+
+    private String extractSubfolderPath() {
+        if (folderName == null || folderName.isEmpty()) {
+            Log.d(TAG, "📁 No subfolder - uploading to root");
+            return null; // folder principal
+        }
+
+        // Verifică dacă folderName conține "/"
+        if (folderName.contains("/")) {
+            // ✅ FIXED: Extrage tot path-ul după primul "/"
+            String subfolder = folderName.substring(folderName.indexOf("/") + 1);
+            Log.d(TAG, "📁 Extracted subfolder path: " + subfolder);
+            return subfolder;
+        }
+
+        Log.d(TAG, "📁 Root folder detected: " + folderName);
+        return null; // folder principal, nu subfolder
+    }
+
+
+    private String getLocalFilePath(String filename, String subfolder) {
+        String basePath = getFilesDir() + "/shared_" + folderId;
+
+        if (subfolder != null && !subfolder.isEmpty()) {
+            // ✅ Creează path complet cu subfolder
+            return basePath + "/" + subfolder + "/" + filename;
+        } else {
+            // Root folder
+            return basePath + "/" + filename;
+        }
+    }
+
+
+    private void refreshFolderData() {
+        Log.d(TAG, "🔄 Refreshing folder data...");
+
+        // Resetează flagul de loading
+        synchronized (imageLock) {
+            isLoadingImages = false;
+        }
+
+        // Fetch fresh data de la server
+        fetchFilesForSharedFolder(folderId);
+        fetchSubfolders(folderId);
+        fetchAndDisplayFolderMembers();
+
     }
 
 
@@ -362,26 +412,26 @@ public class FolderDetailActivity extends AppCompatActivity {
             Log.d(TAG, "📡 Server response: " + responseCode + " - " + responseMessage);
 
             if (responseCode >= 200 && responseCode < 300) {
-                Log.d(TAG, "✅ File registered successfully: " + filename);
+                Log.d(TAG, "  File registered successfully: " + filename);
                 return true;
             } else {
                 try (java.io.InputStream errorStream = conn.getErrorStream()) {
                     if (errorStream != null) {
                         String errorResponse = readInputStream(errorStream);
-                        Log.e(TAG, "❌ Server error response: " + errorResponse);
+                        Log.e(TAG, "   Server error response: " + errorResponse);
                     }
                 }
                 return false;
             }
 
         } catch (java.net.SocketTimeoutException e) {
-            Log.e(TAG, "❌ Server timeout for file: " + filename, e);
+            Log.e(TAG, "   Server timeout for file: " + filename, e);
             return false;
         } catch (java.net.UnknownHostException e) {
-            Log.e(TAG, "❌ Cannot reach server for file: " + filename, e);
+            Log.e(TAG, "   Cannot reach server for file: " + filename, e);
             return false;
         } catch (Exception e) {
-            Log.e(TAG, "❌ Failed to register file: " + filename, e);
+            Log.e(TAG, "   Failed to register file: " + filename, e);
             return false;
         }
     }
@@ -409,7 +459,7 @@ public class FolderDetailActivity extends AppCompatActivity {
 
             InputStream inputStream = context.getContentResolver().openInputStream(uri);
             if (inputStream == null) {
-                Log.e(TAG, "❌ Cannot open input stream for URI: " + uri);
+                Log.e(TAG, "   Cannot open input stream for URI: " + uri);
                 return null;
             }
 
@@ -426,13 +476,13 @@ public class FolderDetailActivity extends AppCompatActivity {
             inputStream.close();
             outputStream.close();
 
-            Log.d(TAG, "✅ File created: " + file.getAbsolutePath());
+            Log.d(TAG, "  File created: " + file.getAbsolutePath());
             Log.d(TAG, "📋 File size: " + totalBytes + " bytes");
 
             return file.getAbsolutePath();
 
         } catch (IOException e) {
-            Log.e(TAG, "❌ Failed to copy file from URI: " + uri, e);
+            Log.e(TAG, "   Failed to copy file from URI: " + uri, e);
             return null;
         }
     }
@@ -442,7 +492,7 @@ public class FolderDetailActivity extends AppCompatActivity {
     {
         File file = new File(filePath);
         if (!file.exists()) {
-            Log.e(TAG, "❌ File does not exist: " + filePath);
+            Log.e(TAG, "   File does not exist: " + filePath);
             return null;
         }
 
@@ -476,15 +526,15 @@ public class FolderDetailActivity extends AppCompatActivity {
 
             Response response = client.newCall(request).execute();
             if (!response.isSuccessful()) {
-                Log.e(TAG, "❌ Upload failed: " + response.code() + " - " + response.message());
+                Log.e(TAG, "   Upload failed: " + response.code() + " - " + response.message());
                 return null;
             }
 
-            Log.d(TAG, "✅ Upload successful: " + file.getName());
+            Log.d(TAG, "  Upload successful: " + file.getName());
             return file.getName();  // Trebuie să se potrivească cu ceea ce trimiti în registerFileInBackendSync
 
         } catch (Exception e) {
-            Log.e(TAG, "❌ HTTP upload exception: " + e.getMessage(), e);
+            Log.e(TAG, "   HTTP upload exception: " + e.getMessage(), e);
             return null;
         }
     }
@@ -579,14 +629,14 @@ public class FolderDetailActivity extends AppCompatActivity {
             try {
                 okhttp3.Response response = client.newCall(request).execute();
                 if (response.isSuccessful()) {
-                    Log.d(TAG, "✅ Successfully deleted " + fileName + " from server");
+                    Log.d(TAG, "  Successfully deleted " + fileName + " from server");
                     runOnUiThread(this::notifyFolderUpdated);
                 } else {
-                    Log.e(TAG, "❌ Server delete failed. Code: " + response.code());
+                    Log.e(TAG, "   Server delete failed. Code: " + response.code());
                     runOnUiThread(() -> Toast.makeText(this, "Failed to delete from server", Toast.LENGTH_SHORT).show());
                 }
             } catch (Exception e) {
-                Log.e(TAG, "❌ Exception deleting file: " + fileName, e);
+                Log.e(TAG, "   Exception deleting file: " + fileName, e);
                 runOnUiThread(() -> Toast.makeText(this, "Error deleting file", Toast.LENGTH_SHORT).show());
             }
         }).start();
@@ -634,18 +684,19 @@ public class FolderDetailActivity extends AppCompatActivity {
             try {
                 okhttp3.Response response = client.newCall(request).execute();
                 if (response.isSuccessful()) {
-                    Log.d(TAG, "✅ Folder update notification sent");
+                    Log.d(TAG, "  Folder update notification sent");
 
-                    // 👉 AICI forțăm sync pe UI thread
                     runOnUiThread(() -> {
-                        fetchFilesForSharedFolder(folderId);
+                        new Handler().postDelayed(() -> {
+                            refreshFolderData();
+                        }, 5000); // 1 sec delay pentru a lasa serverul sa proceseze
                     });
 
                 } else {
-                    Log.e(TAG, "❌ Failed to notify update - Code: " + response.code());
+                    Log.e(TAG, "   Failed to notify update - Code: " + response.code());
                 }
             } catch (Exception e) {
-                Log.e(TAG, "❌ Exception while notifying folder update", e);
+                Log.e(TAG, "   Exception while notifying folder update", e);
             }
         }).start();
     }
@@ -671,7 +722,7 @@ public class FolderDetailActivity extends AppCompatActivity {
     }
 
     private void updateUI() {
-        // ✅ Verifică dacă e încă în loading pentru a evita update-uri premature
+        //   Verifică dacă e încă în loading pentru a evita update-uri premature
         if (isLoadingImages) {
             Log.d(TAG, "Still loading images, skipping UI update");
             return;
@@ -689,7 +740,7 @@ public class FolderDetailActivity extends AppCompatActivity {
         othersRecyclerView.setVisibility(otherImages.isEmpty() ? View.GONE : View.VISIBLE);
         duplicateRecyclerView.setVisibility(duplicateImages.isEmpty() ? View.GONE : View.VISIBLE);
 
-        // ✅ Setup RecyclerViews cu verificare pentru schimbări
+        //   Setup RecyclerViews cu verificare pentru schimbări
         setupSubfoldersRecyclerView();
         setupImageRecyclerViewOptimized(likedRecyclerView, likedImages, false);
         setupImageRecyclerViewOptimized(othersRecyclerView, otherImages, true);
@@ -700,7 +751,7 @@ public class FolderDetailActivity extends AppCompatActivity {
     private void setupImageRecyclerViewOptimized(RecyclerView recyclerView, List<String> images, boolean isOthersRecycler) {
         if (images.isEmpty()) return;
 
-        // ✅ Verifică dacă adapter-ul există și are aceleași date
+        //   Verifică dacă adapter-ul există și are aceleași date
         if (recyclerView.getAdapter() instanceof FolderImageAdapter) {
             FolderImageAdapter existingAdapter = (FolderImageAdapter) recyclerView.getAdapter();
             // Doar actualizează datele fără să recreezi adapter-ul
@@ -898,13 +949,13 @@ public class FolderDetailActivity extends AppCompatActivity {
 
 
     private void openFolder(String targetFolderName) {
-        // ✅ Nu permite să redeschizi același folder
+        //   Nu permite să redeschizi același folder
         if (targetFolderName.equals(folderName)) {
             Toast.makeText(this, "Already in this folder", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // ✅ Deschide FolderDetailActivity cu același folderId, dar cu targetFolderName ca subfolder
+        //   Deschide FolderDetailActivity cu același folderId, dar cu targetFolderName ca subfolder
         Intent intent = new Intent(this, FolderDetailActivity.class);
         intent.putExtra("FOLDER_ID", folderId);
         intent.putExtra("FOLDER_NAME", targetFolderName);
@@ -1038,11 +1089,19 @@ public class FolderDetailActivity extends AppCompatActivity {
 
         String url = "http://transferly.go.ro:8080/api/shared/" + folderId + "/files";
 
+        // ✅ Fă variabila final pentru lambda
+        final String currentSubfolder;
         if (folderName != null && folderName.contains("/")) {
             String[] parts = folderName.split("/", 2);
-            String subfolderName = parts[1];
-            url += "?subfolder=" + Uri.encode(subfolderName);
+            currentSubfolder = parts[1];
+            url += "?subfolder=" + Uri.encode(currentSubfolder);
+        } else {
+            currentSubfolder = null;
         }
+
+        Log.d(TAG, "🌐 Fetching files from: " + url);
+        Log.d(TAG, "📁 Current folder: " + folderName);
+        Log.d(TAG, "📁 Current subfolder: " + currentSubfolder);
 
         OkHttpClient client = new OkHttpClient();
         okhttp3.Request request = new okhttp3.Request.Builder()
@@ -1056,78 +1115,203 @@ public class FolderDetailActivity extends AppCompatActivity {
 
                 if (!response.isSuccessful()) {
                     Log.e(TAG, "❌ Failed to fetch files. Code: " + response.code());
+                    if (response.body() != null) {
+                        Log.e(TAG, "Error body: " + response.body().string());
+                    }
+                    synchronized (imageLock) {
+                        isLoadingImages = false;
+                    }
                     return;
                 }
 
                 String responseBody = response.body().string();
+                Log.d(TAG, "📡 Server response: " + responseBody);
+
                 JSONArray jsonArray = new JSONArray(responseBody);
+                Log.d(TAG, "📋 Fetched " + jsonArray.length() + " entries from server");
 
-                Log.d(TAG, "Fetched " + jsonArray.length() + " files from server");
-
-                // ✅ Folosește o listă temporară pentru a evita modificări concurente
                 List<String> serverImages = new ArrayList<>();
                 List<String> serverSubfolders = new ArrayList<>();
-
-                // ✅ Procesează toate fișierele într-un batch
-                List<String> filesToDownload = new ArrayList<>();
 
                 for (int i = 0; i < jsonArray.length(); i++) {
                     String entry = jsonArray.optString(i);
                     if (entry == null || entry.trim().isEmpty()) continue;
 
+                    Log.d(TAG, "📄 Processing entry: " + entry);
+
                     if (entry.startsWith("folder:")) {
                         String subfolderName = entry.substring("folder:".length());
-                        serverSubfolders.add(subfolderName);
+
+                        // ✅ Construiește path-ul complet pentru subfolder
+                        String fullSubfolderPath;
+                        if (folderName == null || folderName.isEmpty()) {
+                            fullSubfolderPath = subfolderName;
+                        } else {
+                            fullSubfolderPath = folderName + "/" + subfolderName;
+                        }
+
+                        serverSubfolders.add(fullSubfolderPath);
+                        Log.d(TAG, "📁 Added subfolder: " + fullSubfolderPath);
                         continue;
                     }
 
-                    // Verifică dacă fișierul există local
-                    String fileName = entry.substring(entry.lastIndexOf('/') + 1);
-                    File localFile = new File(getFilesDir() + "/shared_" + folderId, fileName);
+                    // ✅ Procesează fișierele cu URL-uri corecte
+                    if (entry.startsWith("http://")) {
+                        Log.d(TAG, "🔗 Processing file URL: " + entry);
 
-                    if (localFile.exists()) {
-                        String localUri = Uri.fromFile(localFile).toString();
-                        serverImages.add(localUri);
-                    } else {
-                        filesToDownload.add(entry);
+                        // Extrage numele fișierului din URL
+                        String fileName = extractFileNameFromUrl(entry);
+                        Log.d(TAG, "📄 Extracted filename: " + fileName);
+
+                        // ✅ Creează calea locală corectă folosind variabila final
+                        String localPath = getLocalFilePath(fileName, currentSubfolder);
+                        File localFile = new File(localPath);
+
+                        Log.d(TAG, "📍 Local file path: " + localPath);
+                        Log.d(TAG, "📍 File exists: " + localFile.exists());
+
+                        if (localFile.exists()) {
+                            String localUri = Uri.fromFile(localFile).toString();
+                            serverImages.add(localUri);
+                            Log.d(TAG, "✅ Using cached file: " + localUri);
+                        } else {
+                            // ✅ Download cu URL-ul corect (include subfolder în parametri)
+                            Log.d(TAG, "⬇️ Downloading file: " + fileName + " from URL: " + entry);
+                            String localUri = downloadSingleImageSync(entry, folderId, currentSubfolder);
+                            if (localUri != null) {
+                                serverImages.add(localUri);
+                                Log.d(TAG, "✅ Downloaded and added: " + localUri);
+                            } else {
+                                Log.e(TAG, "❌ Failed to download: " + fileName);
+                            }
+                        }
                     }
                 }
 
-                // ✅ Download fișierele lipsă în batch
-                if (!filesToDownload.isEmpty()) {
-                    downloadFilesBatch(filesToDownload, folderId, serverImages);
-                }
+                Log.d(TAG, "📊 Processing complete:");
+                Log.d(TAG, "   Images found: " + serverImages.size());
+                Log.d(TAG, "   Subfolders found: " + serverSubfolders.size());
 
-                // ✅ Update UI-ul o singură dată, nu pentru fiecare fișier
+                // ✅ Update UI-ul într-un singur batch
                 runOnUiThread(() -> {
                     synchronized (imageLock) {
+                        // Update images
                         otherImages.clear();
                         otherImages.addAll(serverImages);
 
-                        // Update subfolders doar dacă sunt diferite
+                        // Update subfolders only if different
                         if (!serverSubfolders.equals(subfolders)) {
                             subfolders.clear();
                             subfolders.addAll(serverSubfolders);
+                            Log.d(TAG, "🔄 Subfolders updated: " + subfolders);
                         }
 
                         updateUI();
                         saveFolderData(folderName);
                         isLoadingImages = false;
+
+                        Log.d(TAG, "✅ UI updated successfully with " + otherImages.size() + " images");
                     }
                 });
-
-                // Fetch subfolders separat, fără să afecteze imaginile
-                fetchSubfolders(folderId);
 
             } catch (Exception e) {
                 Log.e(TAG, "❌ Exception fetching files", e);
                 synchronized (imageLock) {
                     isLoadingImages = false;
                 }
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Error loading images: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
             }
         }).start();
     }
 
+
+    private String extractFileNameFromUrl(String url) {
+        try {
+            // Extrage partea după ultimul "/"
+            String fileName = url.substring(url.lastIndexOf('/') + 1);
+
+            // Elimină parametrii de query dacă există
+            if (fileName.contains("?")) {
+                fileName = fileName.substring(0, fileName.indexOf("?"));
+            }
+
+            return fileName;
+        } catch (Exception e) {
+            Log.e(TAG, "Error extracting filename from URL: " + url, e);
+            return url; // fallback
+        }
+    }
+
+
+    private String downloadSingleImageSync(String imageUrl, String folderId, String currentSubfolder) {
+        OkHttpClient client = new OkHttpClient();
+        FileOutputStream outputStream = null;
+
+        try {
+            String fileName = extractFileNameFromUrl(imageUrl);
+            Log.d(TAG, "📥 Downloading: " + fileName);
+            Log.d(TAG, "🔗 From URL: " + imageUrl);
+
+            // ✅ Creează structura de directoare corectă
+            String baseDir = getFilesDir() + "/shared_" + folderId;
+            File dir = new File(baseDir);
+
+            if (currentSubfolder != null && !currentSubfolder.isEmpty()) {
+                dir = new File(baseDir, currentSubfolder);
+            }
+
+            if (!dir.exists()) {
+                boolean created = dir.mkdirs();
+                Log.d(TAG, "📁 Directory created: " + dir.getAbsolutePath() + " (success=" + created + ")");
+            }
+
+            File imageFile = new File(dir, fileName);
+            Log.d(TAG, "💾 Saving to: " + imageFile.getAbsolutePath());
+
+            okhttp3.Request request = new okhttp3.Request.Builder()
+                    .url(imageUrl)
+                    .get()
+                    .build();
+
+            okhttp3.Response response = client.newCall(request).execute();
+
+            Log.d(TAG, "📡 Download response code: " + response.code());
+
+            if (!response.isSuccessful() || response.body() == null) {
+                Log.e(TAG, "❌ Failed to download " + fileName + ": " + response.code());
+
+                if (response.body() != null) {
+                    Log.e(TAG, "Error response: " + response.body().string());
+                }
+
+                return null;
+            }
+
+            byte[] bytes = response.body().bytes();
+            Log.d(TAG, "📦 Downloaded bytes: " + bytes.length);
+
+            outputStream = new FileOutputStream(imageFile);
+            outputStream.write(bytes);
+            outputStream.flush();
+
+            String localUri = Uri.fromFile(imageFile).toString();
+            Log.d(TAG, "✅ Downloaded: " + fileName + " -> " + localUri);
+
+            return localUri;
+
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Error downloading file: " + imageUrl, e);
+            return null;
+        } finally {
+            try {
+                if (outputStream != null) outputStream.close();
+            } catch (IOException e) {
+                Log.e(TAG, "Error closing output stream", e);
+            }
+        }
+    }
 
     private void downloadFilesBatch(List<String> filesToDownload, String folderId, List<String> targetList) {
         for (String imageUrl : filesToDownload) {
@@ -1141,10 +1325,24 @@ public class FolderDetailActivity extends AppCompatActivity {
 
         try {
             String fileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
-            File dir = new File(getFilesDir(), "shared_" + folderId);
-            if (!dir.exists()) dir.mkdirs();
+
+            // ✅ FIXED: Creează directorul pentru subfolder local
+            String baseDir = getFilesDir() + "/shared_" + folderId;
+            File dir = new File(baseDir);
+
+            // ✅ Dacă suntem în subfolder, creează structura de directoare
+            String subfolder = extractSubfolderPath();
+            if (subfolder != null && !subfolder.isEmpty()) {
+                dir = new File(baseDir, subfolder);
+            }
+
+            if (!dir.exists()) {
+                boolean created = dir.mkdirs();
+                Log.d(TAG, "📁 Directory created: " + dir.getAbsolutePath() + " - " + created);
+            }
 
             File imageFile = new File(dir, fileName);
+            Log.d(TAG, "📥 Downloading to: " + imageFile.getAbsolutePath());
 
             okhttp3.Request request = new okhttp3.Request.Builder()
                     .url(imageUrl)
@@ -1169,7 +1367,7 @@ public class FolderDetailActivity extends AppCompatActivity {
                 targetList.add(localUri);
             }
 
-            Log.d(TAG, "✅ Downloaded: " + fileName);
+            Log.d(TAG, "✅ Downloaded: " + fileName + " to " + imageFile.getAbsolutePath());
 
         } catch (Exception e) {
             Log.e(TAG, "❌ Error downloading file: " + imageUrl, e);
@@ -1181,6 +1379,7 @@ public class FolderDetailActivity extends AppCompatActivity {
             }
         }
     }
+
 
 
 
@@ -1198,7 +1397,7 @@ public class FolderDetailActivity extends AppCompatActivity {
                 okhttp3.Response response = client.newCall(request).execute();
 
                 if (!response.isSuccessful()) {
-                    Log.e(TAG, "❌ Failed to fetch subfolders. Code: " + response.code());
+                    Log.e(TAG, "   Failed to fetch subfolders. Code: " + response.code());
                     return;
                 }
 
@@ -1225,7 +1424,7 @@ public class FolderDetailActivity extends AppCompatActivity {
                 });
 
             } catch (Exception e) {
-                Log.e(TAG, "❌ Exception fetching subfolders", e);
+                Log.e(TAG, "   Exception fetching subfolders", e);
             }
         }).start();
     }
@@ -1302,7 +1501,7 @@ public class FolderDetailActivity extends AppCompatActivity {
                 okhttp3.Response response = client.newCall(request).execute();
 
                 if (!response.isSuccessful() || response.body() == null) {
-                    Log.e(TAG, "❌ Failed to download " + fileName + ": " + response.code());
+                    Log.e(TAG, "   Failed to download " + fileName + ": " + response.code());
                     return;
                 }
 
@@ -1324,10 +1523,10 @@ public class FolderDetailActivity extends AppCompatActivity {
                 });
 
 
-                Log.d(TAG, "✅ Downloaded and saved: " + fileName);
+                Log.d(TAG, "  Downloaded and saved: " + fileName);
 
             } catch (Exception e) {
-                Log.e(TAG, "❌ Error downloading file via HTTP: " + imageUrl, e);
+                Log.e(TAG, "   Error downloading file via HTTP: " + imageUrl, e);
             } finally {
                 try {
                     if (outputStream != null) outputStream.close();
@@ -1389,7 +1588,7 @@ public class FolderDetailActivity extends AppCompatActivity {
                 okhttp3.Response response = client.newCall(request).execute();
 
                 if (!response.isSuccessful()) {
-                    Log.e(TAG, "❌ Failed to fetch folder members. Code: " + response.code());
+                    Log.e(TAG, "   Failed to fetch folder members. Code: " + response.code());
                     runOnUiThread(() -> {
                         Toast.makeText(this, "Could not load members", Toast.LENGTH_SHORT).show();
                         callback.accept(members);
@@ -1410,7 +1609,7 @@ public class FolderDetailActivity extends AppCompatActivity {
                 runOnUiThread(() -> callback.accept(members));
 
             } catch (Exception e) {
-                Log.e(TAG, "❌ Exception while fetching folder members", e);
+                Log.e(TAG, "   Exception while fetching folder members", e);
                 runOnUiThread(() -> {
                     Toast.makeText(this, "Could not load members", Toast.LENGTH_SHORT).show();
                     callback.accept(new ArrayList<>());
@@ -1442,16 +1641,16 @@ public class FolderDetailActivity extends AppCompatActivity {
                         finish();
                     });
                 } else {
-                    Log.e("DELETE_FOLDER", "❌ Failed with code: " + response.code());
+                    Log.e("DELETE_FOLDER", "   Failed with code: " + response.code());
                     runOnUiThread(() ->
-                            Toast.makeText(this, "❌ Failed to delete folder", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, "   Failed to delete folder", Toast.LENGTH_SHORT).show()
                     );
                 }
 
             } catch (Exception e) {
-                Log.e("DELETE_FOLDER", "❌ Exception while deleting folder", e);
+                Log.e("DELETE_FOLDER", "   Exception while deleting folder", e);
                 runOnUiThread(() ->
-                        Toast.makeText(this, "❌ Failed to delete folder", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "   Failed to delete folder", Toast.LENGTH_SHORT).show()
                 );
             }
         }).start();
@@ -1543,13 +1742,13 @@ public class FolderDetailActivity extends AppCompatActivity {
                             fetchAndDisplayFolderMembers();
                         });
                     } else {
-                        Log.e(TAG, "❌ Failed to remove member. Code: " + response.code());
+                        Log.e(TAG, "   Failed to remove member. Code: " + response.code());
                         runOnUiThread(() ->
                                 Toast.makeText(this, "Failed to remove " + username, Toast.LENGTH_SHORT).show()
                         );
                     }
                 } catch (Exception e) {
-                    Log.e(TAG, "❌ Exception while removing member", e);
+                    Log.e(TAG, "   Exception while removing member", e);
                     runOnUiThread(() ->
                             Toast.makeText(this, "Error removing member", Toast.LENGTH_SHORT).show()
                     );
@@ -1557,7 +1756,7 @@ public class FolderDetailActivity extends AppCompatActivity {
             }).start();
 
         } catch (Exception e) {
-            Log.e(TAG, "❌ Error creating request JSON", e);
+            Log.e(TAG, "   Error creating request JSON", e);
             Toast.makeText(this, "Error removing member", Toast.LENGTH_SHORT).show();
         }
     }
@@ -1580,7 +1779,7 @@ public class FolderDetailActivity extends AppCompatActivity {
                 okhttp3.Response response = client.newCall(request).execute();
 
                 if (!response.isSuccessful()) {
-                    Log.e(TAG, "❌ Failed to fetch friends. Code: " + response.code());
+                    Log.e(TAG, "   Failed to fetch friends. Code: " + response.code());
                     runOnUiThread(() -> {
                         Toast.makeText(this, "Could not load friends", Toast.LENGTH_SHORT).show();
                         callback.accept(friends);
@@ -1601,7 +1800,7 @@ public class FolderDetailActivity extends AppCompatActivity {
                 runOnUiThread(() -> callback.accept(friends));
 
             } catch (Exception e) {
-                Log.e(TAG, "❌ Exception while fetching friends", e);
+                Log.e(TAG, "   Exception while fetching friends", e);
                 runOnUiThread(() -> {
                     Toast.makeText(this, "Could not load friends", Toast.LENGTH_SHORT).show();
                     callback.accept(new ArrayList<>());
@@ -1642,18 +1841,18 @@ public class FolderDetailActivity extends AppCompatActivity {
                     okhttp3.Response response = client.newCall(request).execute();
 
                     if (response.isSuccessful()) {
-                        System.out.println("✅ Server response: " + response.body().string());
+                        System.out.println("  Server response: " + response.body().string());
                         runOnUiThread(() ->
                                 Toast.makeText(this, "⏳ Request sent! Awaiting approvals.", Toast.LENGTH_SHORT).show());
                     } else {
-                        System.err.println("❌ Failed to request add " + friendUsername + ": " + response.code());
+                        System.err.println("   Failed to request add " + friendUsername + ": " + response.code());
                         String errorBody = response.body() != null ? response.body().string() : "No response body";
                         System.err.println("Error body: " + errorBody);
                         runOnUiThread(() ->
-                                Toast.makeText(this, "❌ Failed to send request", Toast.LENGTH_SHORT).show());
+                                Toast.makeText(this, "   Failed to send request", Toast.LENGTH_SHORT).show());
                     }
                 } catch (Exception e) {
-                    System.err.println("❌ Exception while requesting add " + friendUsername + ": " + e.getMessage());
+                    System.err.println("   Exception while requesting add " + friendUsername + ": " + e.getMessage());
                     e.printStackTrace();
                     runOnUiThread(() ->
                             Toast.makeText(this, "Error adding friend", Toast.LENGTH_SHORT).show());
@@ -1661,7 +1860,7 @@ public class FolderDetailActivity extends AppCompatActivity {
             }).start();
 
         } catch (Exception e) {
-            System.err.println("❌ Exception parsing folderId or building request: " + e.getMessage());
+            System.err.println("   Exception parsing folderId or building request: " + e.getMessage());
             e.printStackTrace();
             Toast.makeText(this, "Error adding friend", Toast.LENGTH_SHORT).show();
         }
@@ -1717,7 +1916,7 @@ public class FolderDetailActivity extends AppCompatActivity {
             updateUI();
         }
 
-        // ✅ Doar dacă nu se încarcă deja
+        //   Doar dacă nu se încarcă deja
         if (!isLoadingImages) {
             fetchFilesForSharedFolder(folderId);
             fetchAndDisplayFolderMembers();
@@ -1745,7 +1944,7 @@ public class FolderDetailActivity extends AppCompatActivity {
             json.put("name", subfolderName);
             json.put("createdBy", currentUser);
         } catch (Exception e) {
-            Log.e(TAG, "❌ Error building subfolder JSON", e);
+            Log.e(TAG, "   Error building subfolder JSON", e);
             return;
         }
 
@@ -1763,13 +1962,13 @@ public class FolderDetailActivity extends AppCompatActivity {
             try {
                 okhttp3.Response response = client.newCall(request).execute();
                 if (response.isSuccessful()) {
-                    Log.d(TAG, "✅ Subfolder registered: " + subfolderName);
+                    Log.d(TAG, "  Subfolder registered: " + subfolderName);
                     runOnUiThread(this::notifyFolderUpdated);  // Notifică ceilalți
                 } else {
-                    Log.e(TAG, "❌ Failed to register subfolder: " + response.code());
+                    Log.e(TAG, "   Failed to register subfolder: " + response.code());
                 }
             } catch (Exception e) {
-                Log.e(TAG, "❌ Error registering subfolder", e);
+                Log.e(TAG, "   Error registering subfolder", e);
             }
         }).start();
     }

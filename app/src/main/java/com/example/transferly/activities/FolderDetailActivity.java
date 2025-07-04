@@ -1175,7 +1175,6 @@ public class FolderDetailActivity extends AppCompatActivity {
                             serverImages.add(localUri);
                             Log.d(TAG, "✅ Using cached file: " + localUri);
                         } else {
-                            // ✅ Download cu URL-ul corect (include subfolder în parametri)
                             Log.d(TAG, "⬇️ Downloading file: " + fileName + " from URL: " + entry);
                             String localUri = downloadSingleImageSync(entry, folderId, currentSubfolder);
                             if (localUri != null) {
